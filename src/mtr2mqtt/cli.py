@@ -126,20 +126,6 @@ def main():
         try:
             ser.write(scl_dbg_1_command)
             logging.debug(f"Wrote message: {scl_dbg_1_command} to: to {ser.name}")
-        # except OSError:
-        #     logging.exception("OS Error: Writing to serial port failed")
-        #     ser.close()
-        #     time.sleep(5)
-        #     ser.apply_settings(serial_config)
-        #     ser.open()
-        # except serial.serialutil.SerialException:
-        #     logging.exception("Serial exception: Writing to serial port failed")
-        #     ser.close()
-        #     time.sleep(5)
-        #     ser.apply_settings(serial_config)
-        #     ser.open()
-        #     pass
-        # try:
             response = ser.read_until(scl.END_CHAR)
             response_checksum = bytes(ser.read(1))
             parsed_response = scl.parse_response(response,response_checksum)

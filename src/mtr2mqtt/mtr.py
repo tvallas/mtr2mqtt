@@ -3,6 +3,7 @@ import json
 import logging
 from logging import warning
 from mtr2mqtt import transmitter_metadata
+from datetime import datetime, timedelta
 
 class TransmitterType(Enum):
     FT10 = 0
@@ -29,31 +30,35 @@ def mtr_response_to_json(payload, transmitters_metadata):
         battery_voltage = (int(payload_fields[1]) & 31)/ 10  # clear 3 highest bits used for data length (31 = 00011111)
         transmitter_id = int(payload_fields[3])
         rsl = (int(payload_fields[2]) & 127) - 127
+        data = ""
         if transmitter_type == "FT10" or transmitter_type == "CSR260":
             reading = round((int(payload_fields[4])+int(payload_fields[5])*256)/10.0 - 273.2, 1)
+            data = {"battery": battery_voltage, "type": f"{transmitter_type}", "rsl": rsl, "id": f"{transmitter_id}", "reading": reading}
         elif transmitter_type == "UTILITY":
             reading = None
+            # Some transmitters may intermittently send some additional information using transmitter type 15. 
+            # After that, comes a byte indicating the type of utility data, and after that, some data.
+            # Currently only 0 and 1 types seem to exist
             logging.debug(f"Utility packet MTR payload: {payload}")
-            #Utility packet MTR payload: 15 125 55 9238 0 255 255
-            #Utility packet MTR payload: 15 124 45 27054 0 184 23
+            # Calibration date
+            if(payload_fields[4] == '0' and len(payload_fields) == 7):
+                # Rest of the payload is a 16 bit word, least significant byte first. Value 0 corresponds to 1.1.2000, and every day increments by one.
+                start_date = datetime.strptime("1.1.2000", "%d.%m.%Y")
+                logging.debug(f"Utility packet, payload length: {len(payload_fields)}")
+                calibration_days = int(payload_fields[5])+256*int(payload_fields[6])
+                if(calibration_days ==  65535): # Guessing this is a special value indicating that the transmitter is not calibrated
+                    logging.debug(f"Calibration utility packet with no calibration information, skipping")
+                    return None
+                calibration_date = start_date + timedelta(days=calibration_days)
+                data = {"battery": battery_voltage, "type": f"{transmitter_type}", "rsl": rsl, "id": f"{transmitter_id}", "calibrated": f"{calibration_date.strftime('%d.%m.%Y')}"}
+            # TODO: Find out the specs for Utility packet with type 1 as identifier
             #Utility packet MTR payload: 15 252 47 27054 1 1 23 80 161 160 170
-            #Utility packet MTR payload: 15 125 54 8750 0 85 17
-            #Utility packet MTR payload: 15 124 55 28506 0 18 24
             #Utility packet MTR payload: 15 252 55 28506 1 1 23 80 162 134 208
             #Utility packet MTR payload: 15 252 42 23511 1 11 12 80 159 217 215
         else:
             logging.debug(f"Processing transmitter type reading not implemented: {transmitter_type}")
             reading = None
-        # print(f"Data bytes: {data_bytes}")
-        # print(f"Battery_voltage: {battery_voltage} V")
-        # print(f"Transmitter type: {transmitter_type}")
-        # print(f"RSL: {rsl} dBm")
-        # print(f"Transmitter ID: {transmitter_id}")
-        # print(f"Reading: {reading}")
-        payload_fields = str(payload).split(' ',3+data_bytes)
-        #print(payload_fields)
 
-        data = {"battery": battery_voltage, "type": f"{transmitter_type}", "rsl": rsl, "id": f"{transmitter_id}", "reading": reading}
         if transmitters_metadata:
             transmitter_information = transmitter_metadata.get_data(transmitter_id, transmitters_metadata)
             logging.debug(f"Transmitter info: {transmitter_information}")
