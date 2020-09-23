@@ -3,7 +3,7 @@ import json
 import logging
 from logging import warning
 from mtr2mqtt import transmitter_metadata
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 class TransmitterType(Enum):
     FT10 = 0
@@ -33,7 +33,7 @@ def mtr_response_to_json(payload, transmitters_metadata):
         data = ""
         if transmitter_type == "FT10" or transmitter_type == "CSR260":
             reading = round((int(payload_fields[4])+int(payload_fields[5])*256)/10.0 - 273.2, 1)
-            data = {"battery": battery_voltage, "type": f"{transmitter_type}", "rsl": rsl, "id": f"{transmitter_id}", "reading": reading}
+            data = {"battery": battery_voltage, "type": f"{transmitter_type}", "rsl": rsl, "id": f"{transmitter_id}", "reading": reading, "timestamp": f"{datetime.now(timezone.utc)}" }
         elif transmitter_type == "UTILITY":
             reading = None
             # Some transmitters may intermittently send some additional information using transmitter type 15. 

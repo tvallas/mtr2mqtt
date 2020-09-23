@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "e346fb144c202ed79b643f7764518d9e4df9432443f7cb55d97332d258c599f1"
+            "sha256": "f79606f7df0e56e6b59f06be62c8e04942036bd292f3356248acf57e568458eb"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -18,10 +18,10 @@
     "default": {
         "paho-mqtt": {
             "hashes": [
-                "sha256:e3d286198baaea195c8b3bc221941d25a3ab0e1507fc1779bdb7473806394be4"
+                "sha256:9feb068e822be7b3a116324e01fb6028eb1d66412bf98595ae72698965cb1cae"
             ],
             "index": "pypi",
-            "version": "==1.5.0"
+            "version": "==1.5.1"
         },
         "pyserial": {
             "hashes": [
@@ -57,6 +57,14 @@
             ],
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
             "version": "==20.2.0"
+        },
+        "freezegun": {
+            "hashes": [
+                "sha256:02b35de52f4699a78f6ac4518e4cd3390dddc43b0aeb978335a8f270a2d9668b",
+                "sha256:1cf08e441f913ff5e59b19cc065a8faa9dd1ddc442eaf0375294f344581a0643"
+            ],
+            "index": "pypi",
+            "version": "==1.0.0"
         },
         "iniconfig": {
             "hashes": [
@@ -112,6 +120,14 @@
             ],
             "index": "pypi",
             "version": "==6.0.2"
+        },
+        "python-dateutil": {
+            "hashes": [
+                "sha256:73ebfe9dbf22e832286dafa60473e4cd239f8592f699aa5adaf10050e6e1823c",
+                "sha256:75bb3f31ea686f1197762692a9ee6a7550b59fc6ca3a1f4b5d7e32fb98e2da2a"
+            ],
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
+            "version": "==2.8.1"
         },
         "six": {
             "hashes": [
