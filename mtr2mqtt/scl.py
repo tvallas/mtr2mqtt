@@ -1,5 +1,15 @@
+"""
+SCL protocol parser module
+
+Functions
+    _calc_bcc(message)
+    create_command(scl_command, scl_address=126)
+    parse_response(scl_response, scl_response_checksum)
+    get_receiver_type(ser, scl_address)
+
+"""
+
 import logging
-import time
 import serial
 
 

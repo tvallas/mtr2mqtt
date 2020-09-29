@@ -1,10 +1,26 @@
+"""
+Command line module
+
+
+Functions
+    create_parser()
+    main()
+
+"""
 from argparse import ArgumentParser
 import logging
-from logging import log, warning
-
-import serial
-from serial.serialposix import Serial
+import sys
+import time
+import paho.mqtt.client as mqtt
+from serial.tools import list_ports
+#from serial.serialposix import Serial
 from serial.serialutil import EIGHTBITS, FIVEBITS, SEVENBITS, SIXBITS
+import serial
+from mtr2mqtt import scl
+from mtr2mqtt import mtr
+from mtr2mqtt import mqtt
+from mtr2mqtt import metadata
+
 
 def create_parser():
     parser = ArgumentParser(description="""
@@ -28,12 +44,7 @@ def create_parser():
     return parser
 
 def main():
-    import serial
-    from serial.tools import list_ports
-    import sys
-    import scl, mtr, mqtt, metadata
-    import time
-    import paho.mqtt.client as mqtt
+
     
     args = create_parser().parse_args()
 

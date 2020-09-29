@@ -12,7 +12,7 @@ from enum import Enum
 import json
 import logging
 from datetime import datetime, timedelta, timezone
-from . import metadata
+from mtr2mqtt import metadata
 
 class TransmitterType(Enum):
     """ MTR series Transmitter types """
