@@ -31,7 +31,7 @@ def main():
     import serial
     from serial.tools import list_ports
     import sys
-    from mtr2mqtt import scl, mtr, mqtt, transmitter_metadata
+    import scl, mtr, mqtt, metadata
     import time
     import paho.mqtt.client as mqtt
     
@@ -49,7 +49,7 @@ def main():
 
     # meta data file processing
     if args.metadata_file:
-        transmitters_metadata = transmitter_metadata.loadfile(args.metadata_file)
+        transmitters_metadata = metadata.loadfile(args.metadata_file)
 
     else:
         transmitters_metadata = None

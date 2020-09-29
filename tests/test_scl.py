@@ -1,5 +1,6 @@
 import pytest
 
+from context import mtr2mqtt
 from mtr2mqtt import scl
 
 def test_scl_bcc_with_correct_checksum():
