@@ -1,6 +1,8 @@
 import pytest
 
-from mtr2mqtt import mtr
+from context import mtr2mqtt
+from mtr2mqtt import mtr, metadata
+
 import json
 from freezegun import freeze_time
 

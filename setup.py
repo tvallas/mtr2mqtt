@@ -10,8 +10,7 @@ setup(
     author='topo',
     author_email='tvallas@iki.fi',
     install_requires=['pyserial', 'paho-mqtt'],
-    packages=find_packages('src'),
-    package_dir={'': 'src'},
+    packages=find_packages(),
     entry_points={
         'console_scripts': [
             'mtr2mqtt=mtr2mqtt.cli:main',

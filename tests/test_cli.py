@@ -1,5 +1,5 @@
 import pytest
-
+from context import mtr2mqtt
 from mtr2mqtt import cli
 
 mtr2mqtt_args = "--mqtt localhost"

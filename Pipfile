@@ -6,6 +6,9 @@ verify_ssl = true
 [dev-packages]
 pytest = "*"
 freezegun = "*"
+pylint = "*"
+pep8 = "*"
+black = "*"
 
 [packages]
 paho-mqtt = "*"
@@ -14,3 +17,6 @@ pyyaml = "*"
 
 [requires]
 python_version = "3.8"
+
+[pipenv]
+allow_prereleases = true

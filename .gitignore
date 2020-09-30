@@ -139,3 +139,5 @@ cython_debug/
 
 # project spesific files
 sample_medadata.yml
+.vscode/
+mtr2mqtt.code-workspace
