@@ -18,7 +18,6 @@ from serial.serialutil import EIGHTBITS, FIVEBITS, SEVENBITS, SIXBITS
 import serial
 from mtr2mqtt import scl
 from mtr2mqtt import mtr
-from mtr2mqtt import mqtt
 from mtr2mqtt import metadata
 
 
@@ -45,7 +44,6 @@ def create_parser():
 
 def main():
 
-    
     args = create_parser().parse_args()
 
     # Configure logging
@@ -66,7 +64,6 @@ def main():
         transmitters_metadata = None
 
 
-
     # SCL constants
     scl_address = args.scl_address
     #scl_type_command = scl.create_command('TYPE ?',args.scl_address)
@@ -74,7 +71,8 @@ def main():
     scl_dbg_1_command = scl.create_command('DBG 1 ?',args.scl_address)
 
     # Trying to find MTR compatible receiver
-    serial_ports = list(list_ports.grep('RTR|FTR|DCS')) # Filtering ports with Nokeval manufactured models that MTR receivers might use
+    # Filtering ports with Nokeval manufactured models that MTR receivers might use
+    serial_ports = list(list_ports.grep('RTR|FTR|DCS'))
 
     ser = serial.Serial()
 
@@ -87,10 +85,10 @@ def main():
                 if device_type:
                     print(f"Connected device type: {device_type}")
         except serial.serialutil.SerialException:
-            logging.exception(f"Unable to open serial port")
+            logging.exception("Unable to open serial port")
             sys.exit(-1)
         except ValueError:
-            logging.exception(f"Unable to open serial port")
+            logging.exception("Unable to open serial port")
             sys.exit(-1)
     else:
         for port in serial_ports:
@@ -100,17 +98,17 @@ def main():
                     device_type = scl.get_receiver_type(ser,scl_address)
                     if device_type:
                         print(f"Connected device type: {device_type}")
-            except serial.serialutil.SerialException as err:
+            except serial.serialutil.SerialException:
                 pass
 
-    if ser.is_open == False:
-        logging.fatal(f"Unable to find MTR receivers")
+    if not ser.is_open:
+        logging.fatal("Unable to find MTR receivers")
         sys.exit(-1)
 
     serial_config = ser.get_settings()
 
     ser.write(scl_sn_command)
-    logging.debug(f"Wrote message: {scl_sn_command} to: {ser.name}")
+    logging.debug("Wrote message: %s to: %s", scl_sn_command, ser.name)
     response = ser.read_until(scl.END_CHAR)
     response_checksum = bytes(ser.read(1))
     print(f"Receiver S/N: {scl.parse_response(response,response_checksum)}")

@@ -40,37 +40,41 @@ def create_command(scl_command, scl_address=126):
 
 
 def parse_response(scl_response, scl_response_checksum):
-
+    """
+    Checks SCL response checksum and returns payload as string
+    """
     # Check that checksum matches
     scl_tmp_response_bytes = [scl_response[i : i + 1] for i in range(len(scl_response))]
     calulated_response_checksum = _calc_bcc(scl_response)
     if calulated_response_checksum != scl_response_checksum:
         logging.warning(
-            f"Checksum SCL failure, response: {scl_response}, received checksum: {scl_response_checksum} expected checksum: {calulated_response_checksum}"
+            "Checksum SCL failure, response: %s, received checksum: %s expected checksum: %s", scl_response, scl_response_checksum, calulated_response_checksum
         )
     try:
         scl_response_content = b"".join(
             scl_tmp_response_bytes[1 : len(scl_tmp_response_bytes) - 1]
         ).decode("ascii")
     except UnicodeDecodeError:
-        logging.warning(f"Unable to parse SCL response: {scl_response}")
+        logging.warning("Unable to parse SCL response: %s", scl_response)
         return None
-    logging.debug(f"Parsed response: {scl_response_content}")
+    logging.debug("Parsed response: %s", scl_response_content)
     return scl_response_content
 
 
 def get_receiver_type(ser, scl_address):
+    """
+    Returns MTR receiver type
+    """
     test_command = create_command("TYPE ?", scl_address)
     supported_device_types = ["MTR970", "RTR970", "FTR980", "CSR970"]
-    logging.info(f"Checking device type in port: {ser.name}")
+    logging.info("Checking device type in port: %s", ser.name)
     try:
-        # ser = serial.Serial(port = port.device, baudrate=args.baudrate, bytesize=args.bytesize, parity=args.parity, stopbits=args.stopbits, timeout=args.serial_timeout)
         ser.reset_input_buffer()
         ser.reset_output_buffer()
-        logging.debug(f"waiting bytes in input buffer after reset: {ser.in_waiting}")
+        logging.debug("waiting bytes in input buffer after reset: %s", ser.in_waiting)
         ser.write(test_command)
         logging.debug(
-            f"Wrote message: {test_command} to: {ser.name} using settings: {ser.get_settings()}"
+            "Wrote message: %s to: %s using settings: %s", test_command, ser.name, ser.get_settings()
         )
         response = ser.read_until(END_CHAR)
         if response:
@@ -88,7 +92,7 @@ def get_receiver_type(ser, scl_address):
                     return parsed_response
                 else:
                     logging.debug(
-                        f"Received incorrect device type response: {parsed_response}"
+                        "Received incorrect device type response: %s", parsed_response
                     )
                     # Because of FTDI USB to Serial port converter used in receivers might buffer previous full unread response despite resetting buffer, lets try to check next answer
                     response = ser.read_until(END_CHAR)
@@ -109,11 +113,11 @@ def get_receiver_type(ser, scl_address):
                                 return parsed_response
                             else:
                                 logging.debug(
-                                    f"Received incorrect device type response: {parsed_response}"
+                                    "Received incorrect device type response: %s", parsed_response
                                 )
                                 return None
                         else:
-                            logging.debug(f"Incorrect checksum received")
+                            logging.debug("Incorrect checksum received")
 
         # Because of FTDI USB to Serial port converter used in receivers might buffer previous partial unread response despite resetting buffer, lets try to check next answer
         response = ser.read_until(END_CHAR)
