@@ -26,19 +26,83 @@ def create_parser():
     MTR receiver readings to MQTT topic as json.
     """)
 
-    parser.add_argument("--serial-port", '-s', help="Serial port for MTR series receiver", required=False)
-    parser.add_argument("--baudrate", help="Serial port baud rate", default=9600, required=False, type=int, choices=[9600, 115200])
-    parser.add_argument("--bytesize", help="Serial port byte size", default=EIGHTBITS, required=False, choices=[FIVEBITS, SIXBITS,SEVENBITS, EIGHTBITS])
-    parser.add_argument("--parity", help="Serial port parity", default=serial.PARITY_NONE, required=False, choices=[serial.PARITY_NONE, serial.PARITY_EVEN, serial.PARITY_ODD, serial.PARITY_MARK, serial.PARITY_SPACE])
-    parser.add_argument("--stopbits", help="Serial port stop bits", default=serial.STOPBITS_ONE, required=False, choices=[serial.STOPBITS_ONE, serial.STOPBITS_TWO])
-    parser.add_argument("--serial-timeout", help="Timeout for serial port", default=1, required=False)
-    parser.add_argument("--scl-address", help="SCL address 0...123 or 126 for broadcast", default=126, required=False, type=int, choices=(list(range(3))+[126]))
+    parser.add_argument(
+        "--serial-port", '-s',
+        help="Serial port for MTR series receiver",
+        required=False
+        )
+    parser.add_argument(
+        "--baudrate",
+        help="Serial port baud rate",
+        default=9600,
+        required=False,
+        type=int,
+        choices=[9600, 115200]
+        )
+    parser.add_argument(
+        "--bytesize",
+        help="Serial port byte size",
+        default=EIGHTBITS,
+        required=False,
+        choices=[FIVEBITS, SIXBITS,SEVENBITS, EIGHTBITS]
+        )
+    parser.add_argument(
+        "--parity", help="Serial port parity",
+        default=serial.PARITY_NONE,
+        required=False,
+        choices=[
+            serial.PARITY_NONE,
+            serial.PARITY_EVEN,
+            serial.PARITY_ODD,
+            serial.PARITY_MARK,
+            serial.PARITY_SPACE
+            ]
+        )
+    parser.add_argument(
+        "--stopbits",
+        help="Serial port stop bits",
+        default=serial.STOPBITS_ONE,
+        required=False,
+        choices=[serial.STOPBITS_ONE, serial.STOPBITS_TWO]
+        )
+    parser.add_argument(
+        "--serial-timeout",
+        help="Timeout for serial port",
+        default=1,
+        required=False
+        )
+    parser.add_argument(
+        "--scl-address",
+        help="SCL address 0...123 or 126 for broadcast",
+        default=126,
+        required=False,
+        type=int,
+        choices=(list(range(124))+[126]),
+        metavar='' # for hiding the messy choices output
+        )
     parser.add_argument("--mqtt-host", '-m', help="MQTT host address", required=False)
     parser.add_argument("--mqtt-port", '-p', help="MQTT host port", required=False)
-    parser.add_argument("--metadata-file", '-f', help="A file for transmitter metadata", required=False, type=str)
+    parser.add_argument(
+        "--metadata-file",'-f',
+        help="A file for transmitter metadata",
+        required=False,
+        type=str
+        )
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--debug", '-d', help="Enable pringing debug messages", required=False, default=False, action='store_true')
-    group.add_argument("--quiet", '-q', help="Print only error messages", required=False, default=False, action='store_true')
+    group.add_argument(
+        "--debug", '-d',
+        help="Enable pringing debug messages",
+        required=False,
+        default=False,
+        action='store_true'
+        )
+    group.add_argument(
+        "--quiet", '-q',
+        help="Print only error messages",
+        required=False,
+        default=False,
+        action='store_true'
+        )
 
     return parser
 
@@ -79,8 +143,15 @@ def main():
     # Check if serial port was given as argument
     if args.serial_port:
         try:
-            ser = serial.Serial(port=args.serial_port, baudrate=args.baudrate, bytesize=args.bytesize, parity=args.parity, stopbits=args.stopbits, timeout=args.serial_timeout)
-            if ser.is_open: 
+            ser = serial.Serial(
+                port=args.serial_port,
+                baudrate=args.baudrate,
+                bytesize=args.bytesize,
+                parity=args.parity,
+                stopbits=args.stopbits,
+                timeout=args.serial_timeout
+                )
+            if ser.is_open:
                 device_type = scl.get_receiver_type(ser,scl_address)
                 if device_type:
                     print(f"Connected device type: {device_type}")
@@ -93,8 +164,15 @@ def main():
     else:
         for port in serial_ports:
             try:
-                ser = serial.Serial(port = port.device, baudrate=args.baudrate, bytesize=args.bytesize, parity=args.parity, stopbits=args.stopbits, timeout=args.serial_timeout)
-                if ser.is_open: 
+                ser = serial.Serial(
+                    port=port.device,
+                    baudrate=args.baudrate,
+                    bytesize=args.bytesize,
+                    parity=args.parity,
+                    stopbits=args.stopbits,
+                    timeout=args.serial_timeout
+                    )
+                if ser.is_open:
                     device_type = scl.get_receiver_type(ser,scl_address)
                     if device_type:
                         print(f"Connected device type: {device_type}")
@@ -130,19 +208,19 @@ def main():
         logging.exception("Unable to connect to MQTT host")
         sys.exit(-1)
 
-    
+
     while True:
         try:
             ser.write(scl_dbg_1_command)
-            logging.debug(f"Wrote message: {scl_dbg_1_command} to: to {ser.name}")
+            logging.debug("Wrote message: %s to: to %s", scl_dbg_1_command, ser.name)
             response = ser.read_until(scl.END_CHAR)
             response_checksum = bytes(ser.read(1))
             parsed_response = scl.parse_response(response,response_checksum)
-            logging.debug(f"response: {response}, response checksum: {response_checksum}")
-            logging.debug(f"parsed SCL response: {parsed_response}")
+            logging.debug("response: %s, response checksum: %s", response, response_checksum)
+            logging.debug("parsed SCL response: %s", parsed_response)
 
             # Character # is returned when the buffer is empty
-            if parsed_response != "#": 
+            if parsed_response != "#":
                 measurement_json = mtr.mtr_response_to_json(parsed_response, transmitters_metadata)
                 if measurement_json:
                     logging.info(measurement_json)
@@ -158,28 +236,20 @@ def main():
                 logging.warning("Trying to reopen serial port")
                 ser.apply_settings(serial_config)
                 ser.open()
-                pass
             except serial.serialutil.SerialException:
                 logging.exception("Serial exception: opening serial port failed")
                 time.sleep(5)
-                pass
             except FileNotFoundError:
                 logging.exception("File not found: opening serial port failed")
                 time.sleep(5)
-                pass
             except OSError:
                 logging.exception("OS Error: opening serial port failed")
                 time.sleep(5)
-                pass
             except:
                 logging.exception("Unexpected error occurred")
                 pass
-                
-
-
 
 
 
 if __name__ == "__main__":
-    
     main()
