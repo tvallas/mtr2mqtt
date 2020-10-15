@@ -2,7 +2,7 @@
 SCL protocol parser module
 
 Functions
-    _calc_bcc(message)
+    calc_bcc(message)
     create_command(scl_command, scl_address=126)
     parse_response(scl_response, scl_response_checksum)
     get_receiver_type(ser, scl_address)
@@ -17,7 +17,10 @@ import serial
 END_CHAR = b"\x03"
 
 
-def _calc_bcc(message):
+def calc_bcc(message):
+    """
+    Calculates SCL packet checksum using XOR over bytes
+    """
     bcc = 0
     for item in message:
         bcc = bcc ^ item
@@ -35,7 +38,7 @@ def create_command(scl_command, scl_address=126):
     """
     ext = chr(3)
     scl_id = bytes([scl_address + 128])  # ID is formed by adding 128 to address
-    bcc = _calc_bcc(str.encode(scl_command + ext))
+    bcc = calc_bcc(str.encode(scl_command + ext))
     return scl_id + str.encode(scl_command + ext) + bcc
 
 
@@ -45,7 +48,7 @@ def parse_response(scl_response, scl_response_checksum):
     """
     # Check that checksum matches
     scl_tmp_response_bytes = [scl_response[i : i + 1] for i in range(len(scl_response))]
-    calulated_response_checksum = _calc_bcc(scl_response)
+    calulated_response_checksum = calc_bcc(scl_response)
     if calulated_response_checksum != scl_response_checksum:
         logging.warning(
             "Checksum SCL failure, response: %s, received checksum: %s expected checksum: %s",
@@ -71,7 +74,7 @@ def _parse_receiver(ser):
     response = ser.read_until(END_CHAR)
     if response:
         response_checksum = bytes(ser.read(1))
-        expected_checksum = _calc_bcc(response)
+        expected_checksum = calc_bcc(response)
         if response_checksum == expected_checksum:
             parsed_response = parse_response(response, response_checksum)
             valid_device_type = any(
