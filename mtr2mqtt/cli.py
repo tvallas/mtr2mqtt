@@ -22,6 +22,9 @@ from mtr2mqtt import metadata
 
 
 def create_parser():
+    """
+    Cli module argument parser
+    """
     parser = ArgumentParser(description="""
     MTR receiver readings to MQTT topic as json.
     """)
@@ -106,33 +109,11 @@ def create_parser():
 
     return parser
 
-def main():
 
-    args = create_parser().parse_args()
-
-    # Configure logging
-    log_format ='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    if args.debug:
-        logging.basicConfig(level=logging.DEBUG, format=log_format)
-        print("Debug logging enabled")
-    elif args.quiet:
-        logging.basicConfig(level=logging.WARNING)
-    else:
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
-
-    # meta data file processing
-    if args.metadata_file:
-        transmitters_metadata = metadata.loadfile(args.metadata_file)
-
-    else:
-        transmitters_metadata = None
-
-
-    # SCL constants
-    scl_address = args.scl_address
-    #scl_type_command = scl.create_command('TYPE ?',args.scl_address)
-    scl_sn_command = scl.create_command('SN ?',args.scl_address)
-    scl_dbg_1_command = scl.create_command('DBG 1 ?',args.scl_address)
+def _open_receiver_port(args):
+    """
+    Open serial port connection
+    """
 
     # Trying to find MTR compatible receiver
     # Filtering ports with Nokeval manufactured models that MTR receivers might use
@@ -152,7 +133,7 @@ def main():
                 timeout=args.serial_timeout
                 )
             if ser.is_open:
-                device_type = scl.get_receiver_type(ser,scl_address)
+                device_type = scl.get_receiver_type(ser,args.scl_address)
                 if device_type:
                     print(f"Connected device type: {device_type}")
         except serial.serialutil.SerialException:
@@ -173,25 +154,48 @@ def main():
                     timeout=args.serial_timeout
                     )
                 if ser.is_open:
-                    device_type = scl.get_receiver_type(ser,scl_address)
+                    device_type = scl.get_receiver_type(ser,args.scl_address)
                     if device_type:
                         print(f"Connected device type: {device_type}")
             except serial.serialutil.SerialException:
                 pass
+    return ser
 
-    if not ser.is_open:
-        logging.fatal("Unable to find MTR receivers")
-        sys.exit(-1)
+def _get_latest_from_ring_buffer(ser, scl_dbg_1_command, serial_config):
+    """"
+    Get latest packet from MTR receiver ring buffer
+    """
+    try:
+        ser.write(scl_dbg_1_command)
+        logging.debug("Wrote message: %s to: to %s", scl_dbg_1_command, ser.name)
+        response = ser.read_until(scl.END_CHAR)
+        response_checksum = bytes(ser.read(1))
+        parsed_response = scl.parse_response(response,response_checksum)
+        logging.debug("response: %s, response checksum: %s", response, response_checksum)
+        logging.debug("parsed SCL response: %s", parsed_response)
+    except OSError:
+        logging.exception("OS Error: Reading to serial port failed")
+        ser.close()
+        time.sleep(1)
+        try:
+            logging.warning("Trying to reopen serial port")
+            ser.apply_settings(serial_config)
+            ser.open()
+        except serial.serialutil.SerialException:
+            logging.exception("Serial exception: opening serial port failed")
+            time.sleep(1)
+        except FileNotFoundError:
+            logging.exception("File not found: opening serial port failed")
+            time.sleep(1)
+        except OSError:
+            logging.exception("OS Error: opening serial port failed")
+            time.sleep(1)
+    return parsed_response
 
-    serial_config = ser.get_settings()
-
-    ser.write(scl_sn_command)
-    logging.debug("Wrote message: %s to: %s", scl_sn_command, ser.name)
-    response = ser.read_until(scl.END_CHAR)
-    response_checksum = bytes(ser.read(1))
-    print(f"Receiver S/N: {scl.parse_response(response,response_checksum)}")
-
-    # MQTT stuff
+def _open_mqtt_connection(args):
+    """
+    Get MQTT client
+    """
     client = mqtt.Client('mtr2mqtt')
     mqtt_host = 'localhost'
     mqtt_port = 1883
@@ -207,49 +211,64 @@ def main():
     except mqtt.socket.timeout:
         logging.exception("Unable to connect to MQTT host")
         sys.exit(-1)
+    return client
 
+def main():
+    """
+    Main function
+    """
+
+    args = create_parser().parse_args()
+
+    # Configure logging
+    log_format ='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG, format=log_format)
+        print("Debug logging enabled")
+    elif args.quiet:
+        logging.basicConfig(level=logging.WARNING)
+    else:
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+
+    # meta data file processing
+    if args.metadata_file:
+        transmitters_metadata = metadata.loadfile(args.metadata_file)
+
+    else:
+        transmitters_metadata = None
+
+    # SCL constants
+    scl_sn_command = scl.create_command('SN ?',args.scl_address)
+    scl_dbg_1_command = scl.create_command('DBG 1 ?',args.scl_address)
+
+    ser = _open_receiver_port(args)
+
+    if not ser.is_open:
+        logging.fatal("Unable to find MTR receivers")
+        sys.exit(-1)
+
+    serial_config = ser.get_settings()
+
+    ser.write(scl_sn_command)
+    logging.debug("Wrote message: %s to: %s", scl_sn_command, ser.name)
+    response = ser.read_until(scl.END_CHAR)
+    response_checksum = bytes(ser.read(1))
+    print(f"Receiver S/N: {scl.parse_response(response,response_checksum)}")
+
+    mqtt_client = _open_mqtt_connection(args)
 
     while True:
-        try:
-            ser.write(scl_dbg_1_command)
-            logging.debug("Wrote message: %s to: to %s", scl_dbg_1_command, ser.name)
-            response = ser.read_until(scl.END_CHAR)
-            response_checksum = bytes(ser.read(1))
-            parsed_response = scl.parse_response(response,response_checksum)
-            logging.debug("response: %s, response checksum: %s", response, response_checksum)
-            logging.debug("parsed SCL response: %s", parsed_response)
 
-            # Character # is returned when the buffer is empty
-            if parsed_response != "#":
-                measurement_json = mtr.mtr_response_to_json(parsed_response, transmitters_metadata)
-                if measurement_json:
-                    logging.info(measurement_json)
-                    client.publish('measurements', payload=measurement_json, qos=0, retain=False)
-            else:
-                logging.debug('Ring buffer empty')
-                time.sleep(1)
-        except OSError:
-            logging.exception("OS Error: Reading to serial port failed")
-            ser.close()
-            time.sleep(5)
-            try:
-                logging.warning("Trying to reopen serial port")
-                ser.apply_settings(serial_config)
-                ser.open()
-            except serial.serialutil.SerialException:
-                logging.exception("Serial exception: opening serial port failed")
-                time.sleep(5)
-            except FileNotFoundError:
-                logging.exception("File not found: opening serial port failed")
-                time.sleep(5)
-            except OSError:
-                logging.exception("OS Error: opening serial port failed")
-                time.sleep(5)
-            except:
-                logging.exception("Unexpected error occurred")
-                pass
-
-
+        response = _get_latest_from_ring_buffer(ser, scl_dbg_1_command, serial_config)
+        # Character # is returned when the buffer is empty
+        if response != "#":
+            measurement_json = mtr.mtr_response_to_json(response, transmitters_metadata)
+            if measurement_json:
+                logging.info(measurement_json)
+                mqtt_client.publish('measurements', payload=measurement_json, qos=0, retain=False)
+        else:
+            logging.debug('Ring buffer empty')
+            time.sleep(1)
 
 if __name__ == "__main__":
     main()
