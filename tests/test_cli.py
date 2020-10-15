@@ -1,8 +1,11 @@
+"""
+Tests for cli module
+"""
 import pytest
 from context import mtr2mqtt
 from mtr2mqtt import cli
 
-mtr2mqtt_args = "--mqtt localhost"
+MTR2MQTT_ARGS = "--mqtt localhost"
 
 # def test_parser_without_mqtt_server():
 #     """

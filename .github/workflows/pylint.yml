@@ -16,7 +16,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pylint
+        pip install pipenv 
+        make install
     - name: Analysing the code with pylint
       run: |
-        find {mtr2mqtt,tests} -name \*.py -type f -exec pylint {} \+
+        pipenv run find {mtr2mqtt,} -name \*.py -type f -exec pylint {} \+

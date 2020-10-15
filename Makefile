@@ -9,4 +9,4 @@ test:
 	PYTHONPATH=./ pytest
 
 lint:
-	find {mtr2mqtt,tests} -name \*.py -type f -exec pylint {} \+
+	find {mtr2mqtt,} -name \*.py -type f -exec pylint {} \+

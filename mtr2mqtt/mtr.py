@@ -12,6 +12,8 @@ from enum import Enum
 import json
 import logging
 from datetime import datetime, timedelta, timezone
+from collections import namedtuple
+from collections import defaultdict
 from mtr2mqtt import metadata
 
 class TransmitterType(Enum):
@@ -29,6 +31,150 @@ class TransmitterType(Enum):
     UTILITY = 15
 
 
+def check_payload(payload):
+    """
+    Verifies that payload length matches lenght field
+    and that the packet is long enough
+    """
+
+    if payload is None:
+        logging.warning("No MTR respose to parse")
+        return False
+    if len(payload) > 4:
+        payload_fields = str(payload).split(" ")
+        data_bytes = int(payload_fields[1]) >> 5
+        # Actual payload bytes = received - type - length&voltage - rsl - id
+        received_data_bytes = len(payload_fields)-4
+        if data_bytes == received_data_bytes:
+            return True
+        logging.warning(
+            "Payload size mismatch, expected %s got %s bytes",
+            data_bytes, received_data_bytes
+            )
+    elif len(payload) <= 4:
+        logging.warning("Too short payload to process: %s", payload)
+    return False
+
+
+def _get_header_fields(payload):
+    """
+    Get transmitter type, rsl, id and voltage fields
+    """
+    if check_payload(payload):
+        payload_fields = str(payload).split(" ")
+        transmitter_type = TransmitterType(int(payload_fields[0])).name
+        battery_voltage = (
+            int(payload_fields[1]) & 31
+        ) / 10  # clear 3 highest bits used for data length (31 = 00011111)
+        transmitter_id = str(payload_fields[3])
+        rsl = (int(payload_fields[2]) & 127) - 127
+        Headers = namedtuple('Headers', 'transmitter_type rsl transmitter_id battery_voltage')
+        return Headers(transmitter_type, rsl, transmitter_id, battery_voltage)
+    return None
+
+def _get_ft10_reading(payload):
+    """
+    Get FT10/MTR260/CSR260 reading from payload
+    """
+    if check_payload(payload):
+        payload_fields = str(payload).split(" ")
+        reading = round(
+            (int(payload_fields[4]) + int(payload_fields[5]) * 256) / 10.0 - 273.2,
+            1,
+        )
+        return reading
+    return None
+
+def _get_ft10_data(headers, payload):
+    """
+    Get FT10/MTR260/CSR260 reading as json
+    """
+    return {
+        "battery": headers.battery_voltage,
+        "type": f"{headers.transmitter_type}",
+        "rsl": headers.rsl,
+        "id": headers.transmitter_id,
+        "reading": _get_ft10_reading(payload),
+        "timestamp": f"{datetime.now(timezone.utc)}",
+    }
+
+def _get_utility_data(headers, payload):
+    """
+    Get Utility packet as json
+    """
+    payload_fields = str(payload).split(" ")
+    # Some transmitters may intermittently send some additional
+    # information using transmitter type 15.
+    # After that, comes a byte indicating the type of utility data,
+    # and after that, some data.
+    # Currently only 0 and 1 types seem to exist
+    logging.debug("Utility packet MTR payload: %s", payload)
+    # Calibration date
+    if payload_fields[4] == "0" and len(payload_fields) == 7:
+        # Rest of the payload is a 16 bit word, least significant byte first.
+        # Value 0 corresponds to 1.1.2000, and every day increments by one.
+        start_date = datetime.strptime("1.1.2000", "%d.%m.%Y")
+        logging.debug("Utility packet, payload length: %s", len(payload_fields))
+        calibration_days = int(payload_fields[5]) + 256 * int(payload_fields[6])
+        if (
+            calibration_days == 65535
+        ):
+            # Guessing this is a special value indicating that the transmitter
+            # is not calibrated
+            logging.debug(
+                "Calibration utility packet with no calibration information, skipping"
+            )
+            return None
+        calibration_date = start_date + timedelta(days=calibration_days)
+        return {
+            "battery": headers.battery_voltage,
+            "type": f"{headers.transmitter_type}",
+            "rsl": headers.rsl,
+            "id": headers.transmitter_id,
+            "calibrated": f"{calibration_date.strftime('%d.%m.%Y')}",
+            "timestamp": f"{datetime.now(timezone.utc)}"
+            }
+    # Find out the specs for Utility packet with type 1 as identifier
+    # Utility packet MTR payload: 15 252 47 27054 1 1 23 80 161 160 170
+    # Utility packet MTR payload: 15 252 55 28506 1 1 23 80 162 134 208
+    # Utility packet MTR payload: 15 252 42 23511 1 11 12 80 159 217 215
+    return {
+        "battery": headers.battery_voltage,
+        "type": f"{headers.transmitter_type}",
+        "rsl": headers.rsl,
+        "id": headers.transmitter_id,
+        "utility": "Unknown utility packet",
+        "timestamp": f"{datetime.now(timezone.utc)}"
+        }
+
+def _default_payload_handler():
+    """
+    Wrapper function for _unsupported_data_type to be used while processing payloads
+    """
+
+    def _unsupported_data_type(*args):
+        """
+        Get unsupported package response as json
+        """
+        return {
+            "battery": args[0].battery_voltage,
+            "type": f"{args[0].transmitter_type}",
+            "rsl": args[0].rsl,
+            "id": args[0].transmitter_id,
+            "message": "Unsupport transmitter type" ,
+            "timestamp": f"{datetime.now(timezone.utc)}"
+            }
+    return _unsupported_data_type
+
+
+payload_type_function_mapping = {
+    "FT10" : _get_ft10_data,
+    "CSR260" :_get_ft10_data,
+    "UTILITY" : _get_utility_data
+    }
+
+payload_proressor = defaultdict(_default_payload_handler, payload_type_function_mapping)
+
 def mtr_response_to_json(payload, transmitters_metadata):
     """
     Convert MTR response packet to JSON
@@ -36,85 +182,21 @@ def mtr_response_to_json(payload, transmitters_metadata):
     Optionally adding metadata from a file
     """
 
-    if payload is None:
-        logging.warning("No MTR respose to parse")
-        return None
-    if len(payload) > 4:
-        # Get number of payload data bytes.
-        # Defined using bits 7-5 of the second byte (after the id byte)
-        payload_fields = str(payload).split(" ")
-        transmitter_type = TransmitterType(int(payload_fields[0])).name
-        data_bytes = int(payload_fields[1]) >> 5
-        battery_voltage = (
-            int(payload_fields[1]) & 31
-        ) / 10  # clear 3 highest bits used for data length (31 = 00011111)
-        transmitter_id = int(payload_fields[3])
-        rsl = (int(payload_fields[2]) & 127) - 127
-        data = ""
-        if transmitter_type in ('FT10', 'CSR260'):
-            reading = round(
-                (int(payload_fields[4]) + int(payload_fields[5]) * 256) / 10.0 - 273.2,
-                1,
-            )
-            data = {
-                "battery": battery_voltage,
-                "type": f"{transmitter_type}",
-                "rsl": rsl,
-                "id": f"{transmitter_id}",
-                "reading": reading,
-                "timestamp": f"{datetime.now(timezone.utc)}",
-            }
-        elif transmitter_type == "UTILITY":
-            reading = None
-            # Some transmitters may intermittently send some additional
-            # information using transmitter type 15.
-            # After that, comes a byte indicating the type of utility data,
-            # and after that, some data.
-            # Currently only 0 and 1 types seem to exist
-            logging.debug(f"Utility packet MTR payload: {payload}")
-            # Calibration date
-            if payload_fields[4] == "0" and len(payload_fields) == 7:
-                # Rest of the payload is a 16 bit word, least significant byte first.
-                # Value 0 corresponds to 1.1.2000, and every day increments by one.
-                start_date = datetime.strptime("1.1.2000", "%d.%m.%Y")
-                logging.debug(f"Utility packet, payload length: {len(payload_fields)}")
-                calibration_days = int(payload_fields[5]) + 256 * int(payload_fields[6])
-                if (
-                    calibration_days == 65535
-                ):
-                    # Guessing this is a special value indicating that the transmitter
-                    # is not calibrated
-                    logging.debug(
-                        "Calibration utility packet with no calibration information, skipping"
-                    )
-                    return None
-                calibration_date = start_date + timedelta(days=calibration_days)
-                data = {
-                    "battery": battery_voltage,
-                    "type": f"{transmitter_type}",
-                    "rsl": rsl,
-                    "id": f"{transmitter_id}",
-                    "calibrated": f"{calibration_date.strftime('%d.%m.%Y')}",
-                }
-            # TODO: Find out the specs for Utility packet with type 1 as identifier
-            # Utility packet MTR payload: 15 252 47 27054 1 1 23 80 161 160 170
-            # Utility packet MTR payload: 15 252 55 28506 1 1 23 80 162 134 208
-            # Utility packet MTR payload: 15 252 42 23511 1 11 12 80 159 217 215
-        else:
-            logging.debug(
-                f"Processing transmitter type reading not implemented: {transmitter_type}"
-            )
-            reading = None
+    headers = _get_header_fields(payload)
+
+    if headers:
+
+        data = payload_proressor[headers.transmitter_type](headers, payload)
 
         if transmitters_metadata:
             transmitter_information = metadata.get_data(
-                transmitter_id, transmitters_metadata
+                headers.transmitter_id, transmitters_metadata
             )
-            logging.debug(f"Transmitter info: {transmitter_information}")
+            logging.debug("Transmitter info: %s", transmitter_information)
             if transmitter_information:
                 data_with_transmitter_info = {**data, **transmitter_information}
                 return json.dumps(data_with_transmitter_info)
         return json.dumps(data)
 
-    print(f"WARNING: too short payload to process: {payload}")
+
     return None
