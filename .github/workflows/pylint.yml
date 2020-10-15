@@ -18,6 +18,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install pipenv 
         make install
+        pipenv shell
     - name: Analysing the code with pylint
       run: |
         find {mtr2mqtt,} -name \*.py -type f -exec pylint {} \+
