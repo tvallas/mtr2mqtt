@@ -152,15 +152,15 @@ def _default_payload_handler():
     Wrapper function for _unsupported_data_type to be used while processing payloads
     """
 
-    def _unsupported_data_type(*args):
+    def _unsupported_data_type(headers, payload):
         """
         Get unsupported package response as json
         """
         return {
-            "battery": args[0].battery_voltage,
-            "type": f"{args[0].transmitter_type}",
-            "rsl": args[0].rsl,
-            "id": args[0].transmitter_id,
+            "battery": headers.battery_voltage,
+            "type": f"{headers.transmitter_type}",
+            "rsl": headers.rsl,
+            "id": headers.transmitter_id,
             "message": "Unsupport transmitter type" ,
             "timestamp": f"{datetime.now(timezone.utc)}"
             }
