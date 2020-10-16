@@ -156,6 +156,7 @@ def _default_payload_handler():
         """
         Get unsupported package response as json
         """
+        logging.debug("Unsupported response, payload: %s", payload)
         return {
             "battery": headers.battery_voltage,
             "type": f"{headers.transmitter_type}",
