@@ -9,16 +9,17 @@ Functions
 
 import logging
 import sys
+import json
 import yaml
 
 def loadfile(file):
     """
-    Loads metadata file
+    Loads metadata file and returns it as json string
     """
     try:
         with open(file,'r') as metafile:
-            transmitter_info = yaml.load(metafile, Loader=yaml.FullLoader)
-            return transmitter_info
+            transmitter_info = yaml.safe_load(metafile)
+            return json.dumps(transmitter_info)
 
     except FileNotFoundError:
         logging.exception("File not found")
@@ -28,7 +29,7 @@ def get_data(transmitter_id, all_transmitters):
     """
     Gets metada for transmitter
     """
-
+    all_transmitters = json.loads(all_transmitters)
     logging.debug("All transmitters metadata: %s", all_transmitters)
     logging.debug("Transmitter id: %s", transmitter_id)
     info = None
