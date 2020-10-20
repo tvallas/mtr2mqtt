@@ -1,0 +1,6 @@
+- id: 1234
+  location: "Room"
+  unit: "C"
+- id: 2345
+  location: "Room 2"
+  unit: "%"
