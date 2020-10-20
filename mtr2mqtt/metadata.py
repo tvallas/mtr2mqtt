@@ -35,7 +35,7 @@ def get_data(transmitter_id, all_transmitters):
     info = None
     for transmitter in all_transmitters:
         logging.debug("Iterated transmitter: %s", transmitter)
-        if transmitter['id'] == transmitter_id:
+        if transmitter['id'] == int(transmitter_id):
             info = transmitter.copy()
             info.pop('id', None)
             break
