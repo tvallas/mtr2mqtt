@@ -138,6 +138,6 @@ dmypy.json
 cython_debug/
 
 # project spesific files
-sample_medadata.yml
+sample_metadata.yml
 .vscode/
 mtr2mqtt.code-workspace
