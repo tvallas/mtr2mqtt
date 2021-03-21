@@ -78,10 +78,8 @@ def _parse_receiver(ser):
         if response_checksum == expected_checksum:
             parsed_response = parse_response(response, response_checksum)
             valid_device_type = any(
-                [
-                    substring in parsed_response
-                    for substring in supported_device_types
-                ]
+                substring in parsed_response
+                for substring in supported_device_types
             )
             if valid_device_type:
                 return parsed_response
