@@ -9,6 +9,7 @@ freezegun = "*"
 pylint = "*"
 pep8 = "*"
 black = "*"
+python-semantic-release = "*"
 
 [packages]
 paho-mqtt = "*"
