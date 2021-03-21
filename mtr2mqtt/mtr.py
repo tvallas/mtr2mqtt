@@ -124,7 +124,14 @@ def _get_utility_data(headers, payload):
             logging.debug(
                 "Calibration utility packet with no calibration information, skipping"
             )
-            return None
+            return {
+                "battery": headers.battery_voltage,
+                "type": f"{headers.transmitter_type}",
+                "rsl": headers.rsl,
+                "id": headers.transmitter_id,
+                "message": "Device not calibrated" ,
+                "timestamp": f"{datetime.now(timezone.utc)}"
+                }
         calibration_date = start_date + timedelta(days=calibration_days)
         return {
             "battery": headers.battery_voltage,
