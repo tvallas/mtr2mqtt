@@ -50,10 +50,12 @@ def parse_response(scl_response, scl_response_checksum):
     scl_tmp_response_bytes = [scl_response[i : i + 1] for i in range(len(scl_response))]
     calulated_response_checksum = calc_bcc(scl_response)
     if calulated_response_checksum != scl_response_checksum:
-        logging.warning(
-            "Checksum SCL failure, response: %s, received checksum: %s expected checksum: %s",
+        logging.warning('Checsum error, ignoring response')
+        logging.debug(
+            "SCL checksum error, response: %s, received checksum: %s expected checksum: %s",
             scl_response, scl_response_checksum, calulated_response_checksum
         )
+        return None
     try:
         scl_response_content = b"".join(
             scl_tmp_response_bytes[1 : len(scl_tmp_response_bytes) - 1]
