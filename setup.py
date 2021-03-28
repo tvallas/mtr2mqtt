@@ -7,10 +7,11 @@ __version__ = "0.1.0"
 
 setup(
     name='mtr2mqtt',
-    version='__version__',
+    version=__version__,
     description='MTR receiver readings to MQTT server',
     author='topo',
     author_email='tvallas@iki.fi',
+    url='https://github.com/tvallas/mtr2mqtt',
     install_requires=['pyserial', 'paho-mqtt'],
     packages=find_packages(),
     entry_points={
