@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.1.1 (2021-03-28)
+### Fix
+* Test semantic versioning ([`ad0814b`](https://github.com/tvallas/mtr2mqtt/commit/ad0814b2d84cd5678ef7b7199af57d9ea7c1959e))
+
 ## v0.1.0 (2021-03-28)
 ### Feature
 * Add debug logging of unsupported packages ([`f7ae1e3`](https://github.com/tvallas/mtr2mqtt/commit/f7ae1e341a66cfff0689cd74fac474956c2f6e58))
