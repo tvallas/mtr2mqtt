@@ -12,7 +12,7 @@ setup(
     author='topo',
     author_email='tvallas@iki.fi',
     url='https://github.com/tvallas/mtr2mqtt',
-    install_requires=['pyserial', 'paho-mqtt'],
+    install_requires=['pyserial', 'paho-mqtt', 'PyYAML'],
     packages=find_packages(),
     entry_points={
         'console_scripts': [
