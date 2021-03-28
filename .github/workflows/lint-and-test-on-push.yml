@@ -22,6 +22,6 @@ jobs:
         pip install pipenv 
         make install
     - name: Analysing the code with pylint
-      run: make lint
+      run: pipenv run make lint
     - name: Run unit tests
-      run: make test
+      run: pipenv run make test
