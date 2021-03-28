@@ -23,8 +23,8 @@ jobs:
     - name: Analysing the code with pylint
       run: |
         pipenv shell
-        pipenv run make lint
+        make lint
     - name: Run unit tests
       run: |
         pipenv shell 
-        pipenv run make test
+        make test
