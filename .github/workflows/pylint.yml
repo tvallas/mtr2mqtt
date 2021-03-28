@@ -1,6 +1,9 @@
 name: Pylint
 
-on: [push]
+on:
+  push:
+    branches-ignore:
+      - master
 
 jobs:
   build:
@@ -19,5 +22,6 @@ jobs:
         pip install pipenv 
         make install
     - name: Analysing the code with pylint
-      run: |
-        pipenv run find {mtr2mqtt,} -name \*.py -type f -exec pylint {} \+
+      run: make lint
+    - name: Run unit tests
+      run: make test

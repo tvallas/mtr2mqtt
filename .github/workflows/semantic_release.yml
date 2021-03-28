@@ -1,6 +1,8 @@
 name: Semantic Release
-
-on: workflow_dispatch
+on:
+  push:
+    branches:
+      - master
 
 jobs:
   release:
@@ -18,8 +20,7 @@ jobs:
         pip install pipenv 
         make install
     - name: Analysing the code with pylint
-      run: |
-        pipenv run find {mtr2mqtt,} -name \*.py -type f -exec pylint {} \+
+      run: make test
 
     - uses: actions/checkout@v2
       with:
