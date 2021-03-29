@@ -38,11 +38,13 @@ jobs:
     - name: Check if new release was created
       if: env.pre_release_version != env.post_release_version
       run: echo "new_version_released=true" >> $GITHUB_ENV
-  docker-build:
-    runs-on: ubuntu-latest
-    needs: release
-    if: env.new_version_released == true
-    steps:
     - name: Test envs
       run: env
+  # docker-build:
+  #   runs-on: ubuntu-latest
+  #   needs: release
+  #   if: $new_version_released == true
+  #   steps:
+  #   - name: Test envs
+  #     run: env
     
