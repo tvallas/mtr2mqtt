@@ -2,7 +2,7 @@ name: Semantic Release
 on:
   push:
     branches:
-      - master
+      - chore/add-docker-support
 
 jobs:
   release:
@@ -26,8 +26,22 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
+    - name: Get pre release version
+      run: echo "pre_release_version=$(semantic-release print-version --current)" >> $GITHUB_ENV
     - name: Python Semantic Release
       uses: relekang/python-semantic-release@master
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         pypi_token: ${{ secrets.PYPI_TOKEN }}
+    - name: Get post release version
+      run: echo "post_release_version=$(semantic-release print-version --current)" >> $GITHUB_ENV
+    - name: Check if new release was created
+      if: ${{ env.pre_release_version != env.post_release_version }}
+      run: echo "new_version_released=true" >> $GITHUB_ENV
+  docker-build:
+    needs: release
+    if: ${{ env.new_version_released }}
+    steps:
+    - name: Test envs
+      run: env
+    
