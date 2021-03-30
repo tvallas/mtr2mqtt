@@ -60,9 +60,9 @@ jobs:
     - name: Display structure of downloaded files
       run: ls -R
     - name: Print new version if released
-      if: hashFiles('new_version_released') != ''
+      if: hashFiles('artifact/new_version_released') != ''
       shell: bash
       run: |
-        version=`cat new_version_released`
+        version=`cat artifact/new_version_released`
         echo "new release version: $version"
     
