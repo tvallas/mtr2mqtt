@@ -38,7 +38,11 @@ jobs:
       run: echo "post_release_version=$(pipenv run semantic-release print-version --current)" >> $GITHUB_ENV
     - name: Check if new release was created
       if: env.pre_release_version != env.post_release_version
-      run: echo $post_release_version > new_release_version
+      shell: bash
+      run: |
+        echo $post_release_version > new_release_version
+        pwd
+        ls -R
     - name: Upload new release version file
       if: env.pre_release_version != env.post_release_version
       uses: actions/upload-artifact@v2
