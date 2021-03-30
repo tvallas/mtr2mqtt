@@ -19,8 +19,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install pipenv 
         make install
-    - name: Test semantic release command
-      run: pipenv run semantic-release print-version --current
     - name: Analysing the code with pylint
       run: pipenv run find {mtr2mqtt,} -name \*.py -type f -exec pylint {} \+
     - name: Run unit tests
@@ -42,11 +40,11 @@ jobs:
       run: echo "new_version_released=true" >> $GITHUB_ENV
     - name: Test envs
       run: env
-  # docker-build:
-  #   runs-on: ubuntu-latest
-  #   needs: release
-  #   if: $new_version_released == true
-  #   steps:
-  #   - name: Test envs
-  #     run: env
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: release
+    #if: $new_version_released == true
+    steps:
+    - name: Test envs
+      run: env
     
