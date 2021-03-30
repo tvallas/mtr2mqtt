@@ -40,7 +40,7 @@ jobs:
       if: env.pre_release_version != env.post_release_version
       shell: bash
       run: |
-        echo $post_release_version > new_release_version
+        echo $post_release_version > new_version_released
         pwd
         ls -R
     - name: Upload new release version file
