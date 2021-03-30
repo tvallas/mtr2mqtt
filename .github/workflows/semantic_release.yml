@@ -58,7 +58,7 @@ jobs:
     - name: Print new version if released
       if: hashFiles('new_version_released') != ''
       shell: bash
-        run: |
-          version=`cat new_version_released`
-          echo "new release version: $version"
+      run: |
+        version=`cat new_version_released`
+        echo "new release version: $version"
     
