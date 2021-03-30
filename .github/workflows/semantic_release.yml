@@ -20,7 +20,7 @@ jobs:
         pip install pipenv 
         make install
     - name: Test semantic release command
-      run: semantic-release print-version --current
+      run: pipenv run semantic-release print-version --current
     - name: Analysing the code with pylint
       run: pipenv run find {mtr2mqtt,} -name \*.py -type f -exec pylint {} \+
     - name: Run unit tests
