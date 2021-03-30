@@ -27,7 +27,8 @@ jobs:
       with:
         fetch-depth: 0
     - name: Get pre release version
-      run: echo "pre_release_version=$(pipenv run semantic-release print-version --current)" >> $GITHUB_ENV
+      #run: echo "pre_release_version=$(pipenv run semantic-release print-version --current)" >> $GITHUB_ENV
+      run: echo "pre_release_version=0.1.1" >> $GITHUB_ENV
     - name: Python Semantic Release
       uses: relekang/python-semantic-release@master
       with:
@@ -40,7 +41,7 @@ jobs:
       run: echo $post_release_version > new_release_version
     - name: Upload new release version file
       if: env.pre_release_version != env.post_release_version
-        uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v2
       with:
         path: new_version_released
         retention-days: 5
