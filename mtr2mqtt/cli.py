@@ -11,9 +11,9 @@ from argparse import ArgumentParser
 import logging
 import sys
 import time
+import os
 import paho.mqtt.client as mqtt
 from serial.tools import list_ports
-#from serial.serialposix import Serial
 from serial.serialutil import EIGHTBITS, FIVEBITS, SEVENBITS, SIXBITS
 import serial
 from mtr2mqtt import scl
@@ -26,18 +26,20 @@ def create_parser():
     Cli module argument parser
     """
     parser = ArgumentParser(description="""
-    MTR receiver readings to MQTT topic as json.
+    MTR receiver readings to MQTT topic as json. 
+    Most options can be also configured using environment variables.
     """)
 
     parser.add_argument(
         "--serial-port", '-s',
-        help="Serial port for MTR series receiver",
+        help="Serial port for MTR series receiver (ENV: MTR2MQTT_SERIAL_PORT)",
+        default=os.environ.get('MTR2MQTT_SERIAL_PORT'),
         required=False
         )
     parser.add_argument(
         "--baudrate",
         help="Serial port baud rate",
-        default=9600,
+        default=int(os.environ.get('MTR2MQTT_BAUDRATE', 9600)),
         required=False,
         type=int,
         choices=[9600, 115200]
@@ -70,40 +72,49 @@ def create_parser():
         )
     parser.add_argument(
         "--serial-timeout",
-        help="Timeout for serial port",
-        default=1,
+        help="Timeout for serial port (ENV: MTR2MQTT_SERIAL_TIMEOUT)",
+        default=int(os.environ.get('MTR2MQTT_SERIAL_TIMEOUT', 1)),
         required=False
         )
     parser.add_argument(
         "--scl-address",
-        help="SCL address 0...123 or 126 for broadcast",
-        default=126,
+        help="SCL address 0...123 or 126 for broadcast (ENV: MTR2MQTT_SCL_ADDRESS)",
+        default=int(os.environ.get('MTR2MQTT_SCL_ADDRESS', 126)),
         required=False,
         type=int,
         choices=(list(range(124))+[126]),
         metavar='' # for hiding the messy choices output
         )
-    parser.add_argument("--mqtt-host", '-m', help="MQTT host address", required=False)
-    parser.add_argument("--mqtt-port", '-p', help="MQTT host port", required=False)
+    parser.add_argument(
+        "--mqtt-host", '-m',
+        help="MQTT host address (ENV: MTR2MQTT_MQTT_HOST)",
+        default=os.environ.get('MTR2MQTT_MQTT_HOST'),
+        required=False)
+    parser.add_argument(
+        "--mqtt-port", '-p',
+        help="MQTT host port (ENV: MTR2MQTT_MQTT_PORT)",
+        default=int(os.environ.get('MTR2MQTT_MQTT_PORT', 1883)),
+        required=False)
     parser.add_argument(
         "--metadata-file",'-f',
-        help="A file for transmitter metadata",
+        help="A file for transmitter metadata (ENV: MTR2MQTT_METADATA_FILE)",
+        default=os.environ.get('MTR2MQTT_METADATA_FILE'),
         required=False,
         type=str
         )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--debug", '-d',
-        help="Enable pringing debug messages",
+        help="Enable pringing debug messages (ENV: MTR2MQTT_DEBUG)",
         required=False,
-        default=False,
+        default=os.environ.get('MTR2MQTT_DEBUG', 'False').lower() in ['true', '1'],
         action='store_true'
         )
     group.add_argument(
         "--quiet", '-q',
-        help="Print only error messages",
+        help="Print only error messages (ENV: MTR2MQTT_QUIET)",
         required=False,
-        default=False,
+        default=os.environ.get('MTR2MQTT_QUIET', 'False').lower() in ['true', '1'],
         action='store_true'
         )
 
