@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.2.0 (2021-03-31)
+### Feature
+* **cli:** Add option to configure application using environment variables instead of cli arguments ([`5d6f94c`](https://github.com/tvallas/mtr2mqtt/commit/5d6f94cd9220415b2eb6903bbf89efaef0f21724))
+
 ## v0.1.2 (2021-03-28)
 ### Fix
 * Add missing dependency to PyYAML ([`c6ea963`](https://github.com/tvallas/mtr2mqtt/commit/c6ea9634df7ccae78b8a44607ae7f7e4d70e89b1))
