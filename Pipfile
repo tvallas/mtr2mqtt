@@ -11,6 +11,7 @@ pep8 = "*"
 black = "*"
 python-semantic-release = "*"
 more-itertools = "*"
+py = "*"
 
 [packages]
 paho-mqtt = "*"
