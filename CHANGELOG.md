@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.2.1 (2021-04-02)
+### Fix
+* Update dependecies for CVE-2020-29651 ([`926c24f`](https://github.com/tvallas/mtr2mqtt/commit/926c24f97ac60e96588c92c764ebd90d6159328a))
+
 ## v0.2.0 (2021-03-31)
 ### Feature
 * **cli:** Add option to configure application using environment variables instead of cli arguments ([`5d6f94c`](https://github.com/tvallas/mtr2mqtt/commit/5d6f94cd9220415b2eb6903bbf89efaef0f21724))
