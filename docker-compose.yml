@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    restart: always
+    ports:
+      - "1883:1883"
+  mtr2mqtt:
+    image: tvallas/mtr2mqtt:latest
+    container_name: mtr2mqtt
+    restart: always
+    depends_on: 
+      - mosquitto
+    volumes:
+      - type: bind
+        source: ./metadata.yml
+        target: /tmp/metadata.yml
+    environment:
+      MTR2MQTT_MQTT_HOST: mosquitto
+      MTR2MQTT_METADATA_FILE: /tmp/metadata.yml
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
