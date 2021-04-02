@@ -1,0 +1,11 @@
+---
+- id: 12345
+  location: 'Living room'
+  description: 'Ambient air temperature'
+  unit: '°C'
+  quantity: 'Temperature'
+- id: 54321
+  location: 'Living room'
+  unit: '%'
+  description: 'Ambient air humidity'
+  quantity: 'Humidity'
