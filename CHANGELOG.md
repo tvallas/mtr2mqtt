@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.3.1 (2021-04-02)
+### Fix
+* Fix syntax in docker-compose file ([`e6204f5`](https://github.com/tvallas/mtr2mqtt/commit/e6204f5835fa04f8d5f0baae871a5be6ff23670b))
+
 ## v0.3.0 (2021-04-02)
 ### Feature
 * Add docker-compose file and a sample metadata file ([`39d6ba7`](https://github.com/tvallas/mtr2mqtt/commit/39d6ba7c373ccf9b57f9577b76a3142ec20d70cd))
