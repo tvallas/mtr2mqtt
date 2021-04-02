@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.3.0 (2021-04-02)
+### Feature
+* Add docker-compose file and a sample metadata file ([`39d6ba7`](https://github.com/tvallas/mtr2mqtt/commit/39d6ba7c373ccf9b57f9577b76a3142ec20d70cd))
+
 ## v0.2.1 (2021-04-02)
 ### Fix
 * Update dependecies for CVE-2020-29651 ([`926c24f`](https://github.com/tvallas/mtr2mqtt/commit/926c24f97ac60e96588c92c764ebd90d6159328a))
