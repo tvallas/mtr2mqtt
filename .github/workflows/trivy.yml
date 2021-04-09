@@ -17,8 +17,9 @@ jobs:
           make install
       - name: Build an image from Dockerfile
         run: |
-          "VERSION=$(pipenv run semantic-release print-version --current)"
-          docker build --build-arg VERSION=$VERSION -t tvallas/mtr2mqtt:${{ github.sha }} .
+          docker build \
+            --build-arg VERSION=$(pipenv run semantic-release print-version --current) \
+            -t tvallas/mtr2mqtt:${{ github.sha }} .
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
