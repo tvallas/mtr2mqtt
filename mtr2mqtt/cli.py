@@ -7,6 +7,7 @@ Functions
     main()
 
 """
+from importlib.metadata import version
 from argparse import ArgumentParser
 import logging
 import sys
@@ -117,6 +118,13 @@ def create_parser():
         default=os.environ.get('MTR2MQTT_QUIET', 'False').lower() in ['true', '1'],
         action='store_true'
         )
+    group.add_argument(
+        "--version", "-v",
+        help="Print the mtr2mqtt version number and exit",
+        required=False,
+        default=False,
+        action='store_true'
+    )
 
     return parser
 
@@ -230,6 +238,10 @@ def main():
     """
 
     args = create_parser().parse_args()
+
+    if args.version:
+        print(version("mtr2mqtt"))
+        sys.exit(0)
 
     # Configure logging
     log_format ='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
