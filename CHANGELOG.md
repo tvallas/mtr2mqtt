@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.4.0 (2021-04-09)
+### Feature
+* **cli:** Add support for checking the software version ([`dc94b1c`](https://github.com/tvallas/mtr2mqtt/commit/dc94b1c6dfb8ddadd6f52cbfd1794eae725ede00))
+
 ## v0.3.2 (2021-04-02)
 ### Fix
 * Change metadata file ([`2e976f9`](https://github.com/tvallas/mtr2mqtt/commit/2e976f9e5eb1f1da84bb9c9c3c96229b47eab5a7))
