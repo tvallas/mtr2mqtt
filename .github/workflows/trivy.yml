@@ -1,0 +1,33 @@
+name: Scan
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+jobs:
+  scan:
+    name: Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Install dependencies
+        run: |
+          pip install pipenv 
+          make install
+      - name: Build an image from Dockerfile
+        run: |
+          docker build \
+            --build-arg VERSION=$(pipenv run semantic-release print-version --current) \
+            -t tvallas/mtr2mqtt:${{ github.sha }} .
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'tvallas/mtr2mqtt:${{ github.sha }}'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
