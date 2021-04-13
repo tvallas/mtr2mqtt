@@ -74,6 +74,15 @@ jobs:
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Verify that package is available and wait if necessary
+      shell: bash
+      run: |
+        for EXPONENTIAL_BACKOFF in {1..8}; do
+          pip3 download --no-deps --quiet mtr2mqtt==${{ env.post_release_version }} && break;
+          DELAY=$((2**$EXPONENTIAL_BACKOFF))
+          echo "package not yet available, sleeping for $DELAY seconds"
+          sleep $DELAY
+        done
     - name: Build and push
       uses: docker/build-push-action@v2
       with:
