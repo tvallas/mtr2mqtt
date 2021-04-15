@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.4.1 (2021-04-15)
+### Fix
+* Implement better mqtt connection handling, logging and reconnection logic ([`747fe05`](https://github.com/tvallas/mtr2mqtt/commit/747fe058027ede1b016bb0c9717a2d040b05caa1))
+
 ## v0.4.0 (2021-04-09)
 ### Feature
 * **cli:** Add support for checking the software version ([`dc94b1c`](https://github.com/tvallas/mtr2mqtt/commit/dc94b1c6dfb8ddadd6f52cbfd1794eae725ede00))
