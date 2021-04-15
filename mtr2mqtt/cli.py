@@ -13,6 +13,7 @@ import logging
 import sys
 import time
 import os
+import json
 import paho.mqtt.client as mqtt
 from serial.tools import list_ports
 from serial.serialutil import EIGHTBITS, FIVEBITS, SEVENBITS, SIXBITS
@@ -211,11 +212,38 @@ def _get_latest_from_ring_buffer(ser, scl_dbg_1_command, serial_config):
             time.sleep(1)
     return parsed_response
 
+def on_connect(client, userdata, flags, connection_result):
+    """"
+    Handles actions on MQTT connect
+    """
+    logging.debug("userdata: %s, flags: %s", userdata, flags)
+    if connection_result==0:
+        client.connected_flag = True #set flag
+        logging.info("MQTT server connected OK")
+    else:
+        logging.warning("Bad connection Returned code=%s",str(connection_result))
+
+def on_disconnect(client, userdata, connection_result):
+    """"
+    Handles actions on MQTT disconnect
+    """
+    logging.warning(
+        "MQTT server disconnected with reason: %s, userdata: %s",
+        str(connection_result), userdata
+        )
+    client.connected_flag=False
+    client.disconnect_flag=True
+
 def _open_mqtt_connection(args):
     """
     Get MQTT client
     """
+
+    mqtt.Client.connected_flag = False #create flag in class
     client = mqtt.Client('mtr2mqtt')
+    client.enable_logger()
+    client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
     mqtt_host = 'localhost'
     mqtt_port = 1883
     if args.mqtt_host:
@@ -224,10 +252,17 @@ def _open_mqtt_connection(args):
     if args.mqtt_port:
         mqtt_port = int(args.mqtt_port)
 
+    client.loop_start()
     print(f"Connecting to MQTT host: {mqtt_host}:{mqtt_port}")
     try:
         client.connect(mqtt_host,mqtt_port)
+        while not client.connected_flag: #wait in loop
+            logging.debug("Waiting for MQTT connection")
+            time.sleep(1)
     except mqtt.socket.timeout:
+        logging.exception("MQTT server connection timeout")
+        sys.exit(-1)
+    except mqtt.socket.error:
         logging.exception("Unable to connect to MQTT host")
         sys.exit(-1)
     return client
@@ -252,6 +287,7 @@ def main():
         logging.basicConfig(level=logging.WARNING)
     else:
         logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+        sys.tracebacklimit=0
 
     # meta data file processing
     if args.metadata_file:
@@ -276,7 +312,8 @@ def main():
     logging.debug("Wrote message: %s to: %s", scl_sn_command, ser.name)
     response = ser.read_until(scl.END_CHAR)
     response_checksum = bytes(ser.read(1))
-    print(f"Receiver S/N: {scl.parse_response(response,response_checksum)}")
+    receiver_serial_number = scl.parse_response(response,response_checksum)
+    print(f"Receiver S/N: {receiver_serial_number}")
 
     mqtt_client = _open_mqtt_connection(args)
 
@@ -288,7 +325,19 @@ def main():
             measurement_json = mtr.mtr_response_to_json(response, transmitters_metadata)
             if measurement_json:
                 logging.info(measurement_json)
-                mqtt_client.publish('measurements', payload=measurement_json, qos=0, retain=False)
+                (result, mid) = mqtt_client.publish(
+                    f"measurements/{receiver_serial_number}/{json.loads(measurement_json)['id']}",
+                    payload=measurement_json,
+                    qos=1,
+                    retain=False
+                    )
+                logging.debug("publish result: %s, mid: %s",result, mid)
+                if result != 0:
+                    logging.warning(
+                        "Sending message: %s failed with result code: %s",
+                        measurement_json,result
+                        )
+
         else:
             logging.debug('Ring buffer empty')
             time.sleep(1)

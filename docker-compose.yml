@@ -6,6 +6,7 @@ services:
     restart: always
     ports:
       - "1883:1883"
+    command: mosquitto -c /mosquitto-no-auth.conf
   mtr2mqtt:
     image: tvallas/mtr2mqtt:latest
     container_name: mtr2mqtt
@@ -19,5 +20,6 @@ services:
     environment:
       MTR2MQTT_MQTT_HOST: mosquitto
       MTR2MQTT_METADATA_FILE: /tmp/metadata.yml
+      MTR2MQTT_QUIET: "true"
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
