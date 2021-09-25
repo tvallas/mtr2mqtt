@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v0.5.0 (2021-09-25)
+### Feature
+* Add support to DPR990 and DPR991 receivers ([`acbbc51`](https://github.com/tvallas/mtr2mqtt/commit/acbbc516ce5b16321a3c2cd89eb253047a6bf30a))
+
+### Fix
+* Define encoding when opening metadata file ([`52f6812`](https://github.com/tvallas/mtr2mqtt/commit/52f6812d9af520db932bcdae9d5574a621eb7e19))
+
 ## v0.4.1 (2021-04-15)
 ### Fix
 * Implement better mqtt connection handling, logging and reconnection logic ([`747fe05`](https://github.com/tvallas/mtr2mqtt/commit/747fe058027ede1b016bb0c9717a2d040b05caa1))
