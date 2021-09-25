@@ -72,7 +72,7 @@ def _parse_receiver(ser):
     """
     Parse valid receiver from SCL response
     """
-    supported_device_types = ["MTR970", "RTR970", "FTR980", "CSR970"]
+    supported_device_types = ["MTR970", "RTR970", "FTR980", "CSR970", "DPR990", "DPR991"]
     response = ser.read_until(END_CHAR)
     if response:
         response_checksum = bytes(ser.read(1))

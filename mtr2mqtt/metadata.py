@@ -17,7 +17,7 @@ def loadfile(file):
     Loads metadata file and returns it as json string
     """
     try:
-        with open(file,'r') as metafile:
+        with open(file,'r',encoding="utf-8") as metafile:
             transmitter_info = yaml.safe_load(metafile)
             return json.dumps(transmitter_info)
 
