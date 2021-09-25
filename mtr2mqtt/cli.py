@@ -137,7 +137,7 @@ def _open_receiver_port(args):
 
     # Trying to find MTR compatible receiver
     # Filtering ports with Nokeval manufactured models that MTR receivers might use
-    serial_ports = list(list_ports.grep('RTR|FTR|DCS'))
+    serial_ports = list(list_ports.grep('RTR|FTR|DCS|DPR'))
 
     ser = serial.Serial()
 
