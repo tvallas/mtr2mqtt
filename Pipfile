@@ -12,6 +12,7 @@ black = "*"
 python-semantic-release = "~=7.0"
 more-itertools = "*"
 py = "*"
+setuptools = ">=65.5.1"
 
 [packages]
 paho-mqtt = "*"
