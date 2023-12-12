@@ -21,13 +21,6 @@ jobs:
         run: |
           pip install pipenv 
           make install
-      - name: Get the current version
-        run: |
-          echo "VERSION=$(pipenv run semantic-release print-version --current)"
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
-          echo "Current version is $VERSION"
-      - name: Print the current version
-        run: echo "Current version is $VERSION"
       - name: Build an image from Dockerfile
         run: |
           docker build \
