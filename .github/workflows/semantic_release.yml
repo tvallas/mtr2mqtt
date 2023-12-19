@@ -19,7 +19,9 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+      with:
+        fetch-dept: 0
     - name: Set up Python 3.8
       uses: actions/setup-python@v1
       with:
@@ -33,19 +35,17 @@ jobs:
       run: pipenv run find {mtr2mqtt,} -name \*.py -type f -exec pylint {} \+
     - name: Run unit tests
       run: pipenv run make test
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
     - name: Get pre release version
       run: |
         echo "pre_release_version=$(pipenv run semantic-release print-version --current)" >> $GITHUB_ENV
         echo ${{ env.pre_release_version }}
     - name: Python Semantic Release
       id: release
-      uses: relekang/python-semantic-release@master
+      uses: python-semantic-release/python-semantic-release@v7.34.6
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        pypi_token: ${{ secrets.PYPI_TOKEN }}
+        repository_username: __token__
+        repository_password: ${{ secrets.PYPI_TOKEN }}
     - name: Get post release version
       run: echo "post_release_version=$(pipenv run semantic-release print-version --current)" >> $GITHUB_ENV
     - name: Check if new release was created
