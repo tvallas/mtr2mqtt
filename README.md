@@ -117,7 +117,7 @@ Each sensor entry should include:
 - `name`: A descriptive name for the sensor.
 - `unit`: The unit of measurement for the sensor's readings.
 
-Note that other fields can be freely added and those are added to the json object.
+**Note:** Other metadata fields can be freely added and those are added to the json object.
 
 ### Using the metadata file
 To use the metadata file with mtr2mqtt, pass the file path as an argument:
@@ -154,7 +154,7 @@ Where `<receiver_serial_number>` is the serial number of the receiver and `<sens
 - `reading`: The current reading from the sensor.
 - `timestamp`: The timestamp of the reading in ISO 8601 format.
 
-Note that other fields can be freely added and those are added to the JSON object. ```
+**Note:** Other metadata fields can be freely added and those are added to the JSON object.
 
 ## Preparing the Development
 
