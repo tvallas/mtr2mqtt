@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 with open('README.md', encoding='UTF-8') as f:
     readme = f.read()
 
-__version__ = "0.5.3"
+__version__ = "0.5.4"
 
 setup(
     name='mtr2mqtt',
