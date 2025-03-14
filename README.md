@@ -15,9 +15,7 @@ The simplest way to install mtr2mqtt:
 pip install mtr2mqtt
 ```
 
-## Usage
-
-### Basic Command Line Usage
+#### Basic Command Line Usage
 
 Pass in serial port settings and MQTT server address. If not provided, serial port autodetection is used and localhost is used for MQTT.
 
@@ -31,7 +29,7 @@ Or define the serial port and mqtt host as parameters:
 $ mtr2mqtt --serial-port /dev/ttyUSB12345 --mqtt-host 192.168.1.2
 ```
 
-## Using Docker
+### Using Docker
 
 You can use the pre-built Docker images from Docker Hub. Specify the latest or a specific version.
 
@@ -54,13 +52,13 @@ $ docker run --rm -it -v /dev/ttyUSB12345:/dev/ttyUSB12345 tvallas/mtr2mqtt:late
 
 Note: On macOS, Docker cannot access the serial port because it runs in a virtual machine. You will need to run the tool natively on macOS or use a Linux-based system for Docker.
 
-## Docker Compose
+## Using Docker Compose
 
 You can also use Docker Compose to run the application along with an MQTT broker.
 
 1. Create a docker-compose.yml file:
 
-```
+```yaml
 version: '3.8'
 services:
   mosquitto:
@@ -90,7 +88,7 @@ services:
 
 2. Run Docker Compose:
 
-```
+```sh
 docker-compose up -d
 ```
 
