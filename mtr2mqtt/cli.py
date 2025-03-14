@@ -240,7 +240,13 @@ def _open_mqtt_connection(args):
     """
 
     mqtt.Client.connected_flag = False #create flag in class
-    client = mqtt.Client('mtr2mqtt')
+    # Update the client initialization to specify callback API version
+    client = mqtt.Client(
+    client_id='mtr2mqtt',
+    userdata=None,
+    protocol=mqtt.MQTTv311,
+    transport="tcp"
+    )
     client.enable_logger()
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
@@ -255,31 +261,20 @@ def _open_mqtt_connection(args):
     client.loop_start()
     print(f"Connecting to MQTT host: {mqtt_host}:{mqtt_port}")
     try:
-        client.connect(mqtt_host,mqtt_port)
+        client.connect(mqtt_host, mqtt_port)
         while not client.connected_flag: #wait in loop
             logging.debug("Waiting for MQTT connection")
             time.sleep(1)
-    except mqtt.socket.timeout:
-        logging.exception("MQTT server connection timeout")
-        sys.exit(-1)
-    except mqtt.socket.error:
-        logging.exception("Unable to connect to MQTT host")
+    except (mqtt.socket.timeout, mqtt.socket.error) as e:
+        logging.exception("Unable to connect to MQTT host: %s", e)
         sys.exit(-1)
     return client
 
-def main():
+def configure_logging(args):
     """
-    Main function
+    Configure logging based on the provided arguments.
     """
-
-    args = create_parser().parse_args()
-
-    if args.version:
-        print(version("mtr2mqtt"))
-        sys.exit(0)
-
-    # Configure logging
-    log_format ='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     if args.debug:
         logging.basicConfig(level=logging.DEBUG, format=log_format)
         print("Debug logging enabled")
@@ -287,18 +282,37 @@ def main():
         logging.basicConfig(level=logging.WARNING)
     else:
         logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
-        sys.tracebacklimit=0
+        sys.tracebacklimit = 0
 
-    # meta data file processing
+def load_metadata(args):
+    """
+    Load metadata from the specified file if provided.
+    """
     if args.metadata_file:
-        transmitters_metadata = metadata.loadfile(args.metadata_file)
+        return metadata.loadfile(args.metadata_file)
+    return None
 
-    else:
-        transmitters_metadata = None
+def get_scl_commands(args):
+    """
+    Create SCL commands based on the provided arguments.
+    """
+    scl_sn_command = scl.create_command('SN ?', args.scl_address)
+    scl_dbg_1_command = scl.create_command('DBG 1 ?', args.scl_address)
+    return scl_sn_command, scl_dbg_1_command
 
-    # SCL constants
-    scl_sn_command = scl.create_command('SN ?',args.scl_address)
-    scl_dbg_1_command = scl.create_command('DBG 1 ?',args.scl_address)
+def main():
+    """
+    Main function
+    """
+    args = create_parser().parse_args()
+
+    if args.version:
+        print(version("mtr2mqtt"))
+        sys.exit(0)
+
+    configure_logging(args)
+    transmitters_metadata = load_metadata(args)
+    scl_sn_command, scl_dbg_1_command = get_scl_commands(args)
 
     ser = _open_receiver_port(args)
 
@@ -312,35 +326,40 @@ def main():
     logging.debug("Wrote message: %s to: %s", scl_sn_command, ser.name)
     response = ser.read_until(scl.END_CHAR)
     response_checksum = bytes(ser.read(1))
-    receiver_serial_number = scl.parse_response(response,response_checksum)
+    receiver_serial_number = scl.parse_response(response, response_checksum)
     print(f"Receiver S/N: {receiver_serial_number}")
 
     mqtt_client = _open_mqtt_connection(args)
 
-    while True:
-
-        response = _get_latest_from_ring_buffer(ser, scl_dbg_1_command, serial_config)
-        # Character # is returned when the buffer is empty
-        if response != "#":
-            measurement_json = mtr.mtr_response_to_json(response, transmitters_metadata)
-            if measurement_json:
-                logging.info(measurement_json)
-                (result, mid) = mqtt_client.publish(
-                    f"measurements/{receiver_serial_number}/{json.loads(measurement_json)['id']}",
-                    payload=measurement_json,
-                    qos=1,
-                    retain=False
+    try:
+        while True:
+            response = _get_latest_from_ring_buffer(ser, scl_dbg_1_command, serial_config)
+            # Character # is returned when the buffer is empty
+            if response != "#":
+                measurement_json = mtr.mtr_response_to_json(response, transmitters_metadata)
+                if measurement_json:
+                    logging.info(measurement_json)
+                    (result, mid) = mqtt_client.publish(
+                        f"measurements/{receiver_serial_number}/"
+                        f"{json.loads(measurement_json)['id']}",
+                        payload=measurement_json,
+                        qos=1,
+                        retain=False
                     )
-                logging.debug("publish result: %s, mid: %s",result, mid)
-                if result != 0:
-                    logging.warning(
-                        "Sending message: %s failed with result code: %s",
-                        measurement_json,result
+                    logging.debug("publish result: %s, mid: %s", result, mid)
+                    if result != 0:
+                        logging.warning(
+                            "Sending message: %s failed with result code: %s",
+                            measurement_json, result
                         )
-
-        else:
-            logging.debug('Ring buffer empty')
-            time.sleep(1)
+            else:
+                logging.debug('Ring buffer empty')
+                time.sleep(1)
+    except KeyboardInterrupt:
+        logging.info("Interrupted by user")
+    finally:
+        mqtt_client.loop_stop()
+        mqtt_client.disconnect()
 
 if __name__ == "__main__":
     main()

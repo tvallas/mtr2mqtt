@@ -1,4 +1,4 @@
-.PHONY: install test
+.PHONY: install test lint update-deps
 
 default: test
 
@@ -10,3 +10,7 @@ test:
 
 lint:
 	find {mtr2mqtt,} -name \*.py -type f -exec pylint {} \+
+
+update-deps:
+	pipenv update --dev
+	pipenv check
