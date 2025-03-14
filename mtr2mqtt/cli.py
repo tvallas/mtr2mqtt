@@ -240,7 +240,8 @@ def _open_mqtt_connection(args):
     """
 
     mqtt.Client.connected_flag = False #create flag in class
-    client = mqtt.Client('mtr2mqtt')
+    # Update the client initialization to specify callback API version
+    client = mqtt.Client(client_id='mtr2mqtt', userdata=None, protocol=mqtt.MQTTv311, transport="tcp")
     client.enable_logger()
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
@@ -255,15 +256,12 @@ def _open_mqtt_connection(args):
     client.loop_start()
     print(f"Connecting to MQTT host: {mqtt_host}:{mqtt_port}")
     try:
-        client.connect(mqtt_host,mqtt_port)
+        client.connect(mqtt_host, mqtt_port)
         while not client.connected_flag: #wait in loop
             logging.debug("Waiting for MQTT connection")
             time.sleep(1)
-    except mqtt.socket.timeout:
-        logging.exception("MQTT server connection timeout")
-        sys.exit(-1)
-    except mqtt.socket.error:
-        logging.exception("Unable to connect to MQTT host")
+    except (mqtt.socket.timeout, mqtt.socket.error) as e:
+        logging.exception("Unable to connect to MQTT host: %s", e)
         sys.exit(-1)
     return client
 
@@ -317,30 +315,34 @@ def main():
 
     mqtt_client = _open_mqtt_connection(args)
 
-    while True:
-
-        response = _get_latest_from_ring_buffer(ser, scl_dbg_1_command, serial_config)
-        # Character # is returned when the buffer is empty
-        if response != "#":
-            measurement_json = mtr.mtr_response_to_json(response, transmitters_metadata)
-            if measurement_json:
-                logging.info(measurement_json)
-                (result, mid) = mqtt_client.publish(
-                    f"measurements/{receiver_serial_number}/{json.loads(measurement_json)['id']}",
-                    payload=measurement_json,
-                    qos=1,
-                    retain=False
-                    )
-                logging.debug("publish result: %s, mid: %s",result, mid)
-                if result != 0:
-                    logging.warning(
-                        "Sending message: %s failed with result code: %s",
-                        measurement_json,result
+    try:
+        while True:
+            response = _get_latest_from_ring_buffer(ser, scl_dbg_1_command, serial_config)
+            # Character # is returned when the buffer is empty
+            if response != "#":
+                measurement_json = mtr.mtr_response_to_json(response, transmitters_metadata)
+                if measurement_json:
+                    logging.info(measurement_json)
+                    (result, mid) = mqtt_client.publish(
+                        f"measurements/{receiver_serial_number}/{json.loads(measurement_json)['id']}",
+                        payload=measurement_json,
+                        qos=1,
+                        retain=False
                         )
-
-        else:
-            logging.debug('Ring buffer empty')
-            time.sleep(1)
+                    logging.debug("publish result: %s, mid: %s",result, mid)
+                    if result != 0:
+                        logging.warning(
+                            "Sending message: %s failed with result code: %s",
+                            measurement_json,result
+                            )
+            else:
+                logging.debug('Ring buffer empty')
+                time.sleep(1)
+    except KeyboardInterrupt:
+        logging.info("Interrupted by user")
+    finally:
+        mqtt_client.loop_stop()
+        mqtt_client.disconnect()
 
 if __name__ == "__main__":
     main()
