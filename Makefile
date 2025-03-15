@@ -9,7 +9,7 @@ test:
 	PYTHONPATH=./ pytest
 
 lint:
-	find {mtr2mqtt,} -name \*.py -type f -exec pylint {} \+
+	find mtr2mqtt -name '*.py' -type f -exec pylint {} \;
 
 update-deps:
 	pipenv update --dev
