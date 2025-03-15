@@ -2,6 +2,8 @@ name: lint-and-test
 
 on:
   push:
+    branches-ignore:
+      - master
 
 jobs:
   lint:
@@ -19,7 +21,7 @@ jobs:
         pip install pipenv 
         make install
     - name: Analysing the code with pylint
-      run: pipenv run make lint
+      run: pipenv run make
   test:
     runs-on: ubuntu-latest
     steps:
