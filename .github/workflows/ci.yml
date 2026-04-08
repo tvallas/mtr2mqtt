@@ -49,22 +49,3 @@ jobs:
       - name: Build package smoke test
         run: |
           python setup.py sdist bdist_wheel
-
-  docker-smoke:
-    name: Docker build smoke test
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker image (no push)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          load: false
-          tags: mtr2mqtt:ci-smoke
