@@ -29,24 +29,26 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install pipenv and project dependencies
+      - name: Install release tooling and project dependencies
         run: |
-          python -m pip install --upgrade pip pipenv build
-          pipenv install --dev
+          python -m pip install --upgrade pip
+          python -m pip install pipenv build python-semantic-release==7.34.6
+          pipenv sync --dev
+
+      - name: Configure git author
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run semantic release
-        id: semantic_release
-        uses: python-semantic-release/python-semantic-release@v10.5.3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          build: false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: semantic-release version
 
       - name: Build Python distributions
-        if: steps.semantic_release.outputs.released == 'true'
         run: python -m build
 
       - name: Publish distributions to PyPI
-        if: steps.semantic_release.outputs.released == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
