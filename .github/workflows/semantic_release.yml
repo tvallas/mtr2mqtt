@@ -37,20 +37,44 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Create version commit and tag
+        id: semrel
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: semantic-release version
+        run: |
+          BEFORE_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          semantic-release version
+          AFTER_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
 
-      - name: Publish GitHub release
+          if [ "$BEFORE_TAG" != "$AFTER_TAG" ] && [ -n "$AFTER_TAG" ]; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "version=${AFTER_TAG#v}" >> "$GITHUB_OUTPUT"
+            echo "tag=$AFTER_TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push release commit and tag
+        if: steps.semrel.outputs.released == 'true'
+        run: |
+          git push origin HEAD:master --follow-tags
+
+      - name: Create GitHub release
+        if: steps.semrel.outputs.released == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: semantic-release publish
+        run: |
+          gh release create "${{ steps.semrel.outputs.tag }}" \
+            --generate-notes \
+            --title "${{ steps.semrel.outputs.tag }}"
 
       - name: Build Python distributions
+        if: steps.semrel.outputs.released == 'true'
         run: python -m build
 
       - name: Publish package distributions to PyPI
+        if: steps.semrel.outputs.released == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
           password: ${{ secrets.PYPI_TOKEN }}
+          skip-existing: true
