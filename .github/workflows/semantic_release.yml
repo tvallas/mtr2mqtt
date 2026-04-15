@@ -48,7 +48,7 @@ jobs:
           AFTER_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
 
           if [ "$BEFORE_TAG" != "$AFTER_TAG" ] && [ -n "$AFTER_TAG" ]; then
-            semantic-release changelog
+            semantic-release changelog > CHANGELOG.md
 
             if ! git diff --quiet -- CHANGELOG.md; then
               git add CHANGELOG.md
