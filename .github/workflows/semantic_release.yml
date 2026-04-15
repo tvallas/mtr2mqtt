@@ -42,10 +42,19 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BEFORE_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+
           semantic-release version
+
           AFTER_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
 
           if [ "$BEFORE_TAG" != "$AFTER_TAG" ] && [ -n "$AFTER_TAG" ]; then
+            semantic-release changelog
+
+            if ! git diff --quiet -- CHANGELOG.md; then
+              git add CHANGELOG.md
+              git commit --amend --no-edit
+            fi
+
             echo "released=true" >> "$GITHUB_OUTPUT"
             echo "version=${AFTER_TAG#v}" >> "$GITHUB_OUTPUT"
             echo "tag=$AFTER_TAG" >> "$GITHUB_OUTPUT"
