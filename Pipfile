@@ -4,19 +4,18 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-pytest = "*"
+pytest = ">=9.0.3,<10"
 freezegun = "*"
 pylint = "*"
 pep8 = "*"
-black = "*"
-python-semantic-release = "~=7.0"
+black = ">=26.3.1,<27"
+python-semantic-release = ">=10,<11"
 more-itertools = "*"
-py = "*"
 
 [packages]
 paho-mqtt = "*"
 pyserial = "*"
-PyYAML = ">=5.4"
+PyYAML = ">=6,<7"
 
 [requires]
 python_version = "3.10"
