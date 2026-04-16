@@ -1,16 +1,22 @@
-.PHONY: install test lint update-deps
+.PHONY: install test lint build lock update-deps
 
 default: test
 
-install: 
-	pipenv install --dev --skip-lock
+install:
+	uv sync --group dev
 
 test:
-	PYTHONPATH=./ pytest
+	uv run pytest -v
 
 lint:
-	find {mtr2mqtt,} -name \*.py -type f -exec pylint {} \+
+	uv run pylint $(find mtr2mqtt -name "*.py" -type f)
+
+build:
+	uv build
+
+lock:
+	uv lock
 
 update-deps:
-	pipenv update --dev
-	pipenv audit
+	uv lock --upgrade
+	uv sync --group dev

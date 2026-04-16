@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=80", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mtr2mqtt"
+version = "0.6.2"
+description = "MTR receiver readings to MQTT server"
+readme = "README.md"
+authors = [
+  { name = "topo", email = "tvallas@iki.fi" }
+]
+requires-python = ">=3.10"
+dependencies = [
+  "paho-mqtt",
+  "pyserial",
+  "PyYAML>=6,<7",
+]
+
+[project.urls]
+Homepage = "https://github.com/tvallas/mtr2mqtt"
+Repository = "https://github.com/tvallas/mtr2mqtt"
+
+[project.scripts]
+mtr2mqtt = "mtr2mqtt.cli:main"
+
+[dependency-groups]
+dev = [
+  "black>=26.3.1,<27",
+  "freezegun",
+  "more-itertools",
+  "pep8",
+  "pylint",
+  "pytest>=9.0.3,<10",
+  "python-semantic-release>=10,<11",
+]
+
+[tool.setuptools]
+packages = ["mtr2mqtt"]
+
+[tool.semantic_release]
+allow_zero_version = true
+commit_parser = "conventional"
+tag_format = "v{version}"
+commit_message = "chore(release): {version}"
+version_toml = ["pyproject.toml:project.version"]
+build_command = """
+uv lock
+git add uv.lock
+rm -rf dist
+uv build
+"""
+
+[tool.semantic_release.changelog]
+mode = "update"
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"
