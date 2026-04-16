@@ -16,6 +16,10 @@ jobs:
   release:
     name: Release to GitHub and PyPI
     runs-on: ubuntu-latest
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
 
     steps:
       - name: Check out repository
@@ -50,6 +54,7 @@ jobs:
 
           if [ "$BEFORE_TAG" != "$AFTER_TAG" ] && [ -n "$AFTER_TAG" ]; then
             semantic-release changelog
+
             if ! git diff --quiet -- CHANGELOG.md; then
               git add CHANGELOG.md
               git commit --amend --no-edit
@@ -57,6 +62,7 @@ jobs:
             fi
 
             git push origin HEAD:master --follow-tags --force
+
             echo "released=true" >> "$GITHUB_OUTPUT"
             echo "version=${AFTER_TAG#v}" >> "$GITHUB_OUTPUT"
             echo "tag=$AFTER_TAG" >> "$GITHUB_OUTPUT"
@@ -85,3 +91,12 @@ jobs:
           password: ${{ secrets.PYPI_TOKEN }}
           packages-dir: dist
           skip-existing: true
+
+  docker-publish:
+    name: Publish Docker image
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    uses: ./.github/workflows/docker_publish.yml
+    with:
+      version: ${{ needs.release.outputs.version }}
+    secrets: inherit
