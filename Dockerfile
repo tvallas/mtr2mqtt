@@ -2,6 +2,13 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
+RUN apt-get update && \
+    apt-get install --only-upgrade -y \
+        libssl3t64 \
+        openssl \
+        openssl-provider-legacy && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY . /app
 
 RUN python -m pip install --no-cache-dir --upgrade \
