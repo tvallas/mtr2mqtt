@@ -13,4 +13,4 @@ lint:
 
 update-deps:
 	pipenv update --dev
-	pipenv check
+	pipenv audit
