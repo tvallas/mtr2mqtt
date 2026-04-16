@@ -17,7 +17,6 @@ jobs:
   test:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       matrix:
@@ -42,6 +41,9 @@ jobs:
       - name: Install dependencies
         run: |
           pipenv install --dev --system
+
+      - name: Run pylint
+        run: find {mtr2mqtt,} -name \*.py -type f -exec pylint {} \+
 
       - name: Install package
         run: |
