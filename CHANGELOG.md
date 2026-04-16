@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.6.7 (2026-04-16)
+
+### Bug Fixes
+
+- **changelog**: Move semantic-release marker above legacy entries
+  ([`e4f40d8`](https://github.com/tvallas/mtr2mqtt/commit/e4f40d8783206e57602a96e9e97ed2412a584d5d))
+
+
 ## Legacy changelog
 
 ## v0.6.4 (2026-04-16)
