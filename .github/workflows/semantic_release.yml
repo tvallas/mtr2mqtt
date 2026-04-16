@@ -42,39 +42,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BEFORE_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
-
           semantic-release version
-
           AFTER_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
 
           if [ "$BEFORE_TAG" != "$AFTER_TAG" ] && [ -n "$AFTER_TAG" ]; then
-            semantic-release changelog > CHANGELOG.md
-
-            if ! git diff --quiet -- CHANGELOG.md; then
-              git add CHANGELOG.md
-              git commit --amend --no-edit
-            fi
-
             echo "released=true" >> "$GITHUB_OUTPUT"
             echo "version=${AFTER_TAG#v}" >> "$GITHUB_OUTPUT"
             echo "tag=$AFTER_TAG" >> "$GITHUB_OUTPUT"
           else
             echo "released=false" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Push release commit and tag
-        if: steps.semrel.outputs.released == 'true'
-        run: |
-          git push origin HEAD:master --follow-tags
-
-      - name: Create GitHub release
-        if: steps.semrel.outputs.released == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "${{ steps.semrel.outputs.tag }}" \
-            --generate-notes \
-            --title "${{ steps.semrel.outputs.tag }}"
 
       - name: Build Python distributions
         if: steps.semrel.outputs.released == 'true'
