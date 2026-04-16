@@ -11,11 +11,13 @@ concurrency:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
     name: Release to GitHub and PyPI
     runs-on: ubuntu-latest
+    environment: pypi
     outputs:
       released: ${{ steps.release.outputs.released }}
       version: ${{ steps.release.outputs.version }}
@@ -75,8 +77,6 @@ jobs:
         if: steps.release.outputs.released == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          user: __token__
-          password: ${{ secrets.PYPI_TOKEN }}
           packages-dir: dist
           skip-existing: true
 
