@@ -45,7 +45,8 @@ tag_format = "v{version}"
 commit_message = "chore(release): {version}"
 version_toml = ["pyproject.toml:project.version"]
 build_command = """
-uv lock
+python -m pip install "uv>=0.11,<0.12"
+uv lock --upgrade-package "$PACKAGE_NAME"
 git add uv.lock
 rm -rf dist
 uv build
