@@ -1,5 +1,9 @@
 # CHANGELOG
 
+<!-- version list -->
+
+## Legacy changelog
+
 ## v0.6.4 (2026-04-16)
 
 ### Bug Fixes
