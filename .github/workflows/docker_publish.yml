@@ -1,14 +1,15 @@
 name: Docker Publish
 
 on:
-  workflow_run:
-    workflows:
-      - Semantic Release
-    types:
-      - completed
+  workflow_call:
+    inputs:
+      version:
+        description: Released version from semantic-release
+        required: true
+        type: string
 
 concurrency:
-  group: docker-publish-${{ github.event.workflow_run.head_branch }}
+  group: docker-publish-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -17,34 +18,17 @@ permissions:
 jobs:
   docker-publish:
     name: Build and publish Docker image
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'master'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out released commit
+      - name: Check out released source
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Determine image tags
         shell: bash
         run: |
-          VERSION=$(python - <<'PY'
-          import re
-          from pathlib import Path
-
-          content = Path("setup.py").read_text()
-          match = re.search(r'^__version__\s*=\s*"([^"]+)"', content, re.MULTILINE)
-          if not match:
-              raise SystemExit("Could not find __version__ in setup.py")
-          print(match.group(1))
-          PY
-          )
-
-          MAJOR_MINOR=$(echo "$VERSION" | cut -d. -f1,2)
-
+          VERSION="${{ inputs.version }}"
+          MAJOR_MINOR="$(echo "$VERSION" | cut -d. -f1,2)"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "MAJOR_MINOR=$MAJOR_MINOR" >> "$GITHUB_ENV"
 
