@@ -64,15 +64,6 @@ jobs:
             echo "released=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create GitHub Release
-        if: steps.release.outputs.released == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "${{ steps.release.outputs.tag }}" \
-            --generate-notes \
-            --title "${{ steps.release.outputs.tag }}"
-
       - name: Publish to PyPI
         if: steps.release.outputs.released == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
