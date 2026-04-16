@@ -3,8 +3,8 @@ name: Docker Publish
 on:
   workflow_call:
     inputs:
-      version:
-        description: Released version from semantic-release
+      ref:
+        description: Released git ref or tag to publish from
         required: true
         type: string
 
@@ -23,11 +23,25 @@ jobs:
     steps:
       - name: Check out released source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
-      - name: Determine image tags
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Determine image tags from pyproject.toml
         shell: bash
         run: |
-          VERSION="${{ inputs.version }}"
+          VERSION="$(python - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+          print(data["project"]["version"])
+          PY
+          )"
           MAJOR_MINOR="$(echo "$VERSION" | cut -d. -f1,2)"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "MAJOR_MINOR=$MAJOR_MINOR" >> "$GITHUB_ENV"
