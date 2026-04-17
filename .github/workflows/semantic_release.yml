@@ -17,7 +17,7 @@ permissions:
 jobs:
   release:
     name: Release to GitHub and PyPI
-    runs-on: ubuntu-latestq
+    runs-on: ubuntu-latest
     environment: pypi
     outputs:
       released: ${{ steps.release.outputs.released }}
