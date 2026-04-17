@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mtr2mqtt"
-version = "0.6.8"
+version = "0.6.9"
 description = "MTR receiver readings to MQTT server"
 readme = "README.md"
 authors = [

@@ -2,6 +2,31 @@
 
 <!-- version list -->
 
+## v0.6.9 (2026-04-17)
+
+### Bug Fixes
+
+- **deps**: Bump python in the docker-minor-patch group
+  ([`2304af4`](https://github.com/tvallas/mtr2mqtt/commit/2304af48cebd6dbb99938052e6f46086e4e1da7b))
+
+### Chores
+
+- **ci**: Expand Python version coverage in CI
+  ([`6c070f6`](https://github.com/tvallas/mtr2mqtt/commit/6c070f6e9d5c2ea0b3c01a18fbe57a3f3e47ff67))
+
+- **deps**: Add Dependabot configuration
+  ([`0b635be`](https://github.com/tvallas/mtr2mqtt/commit/0b635beec7dcc06fd86af3db2ac5c999835ba470))
+
+- **deps**: Bump actions/checkout from 4 to 6
+  ([`e95503e`](https://github.com/tvallas/mtr2mqtt/commit/e95503ea9e3f54a3d4f4e2d32e5f48c73aa3833e))
+
+- **deps**: Bump actions/setup-python from 5 to 6
+  ([`e1bfd28`](https://github.com/tvallas/mtr2mqtt/commit/e1bfd288afe9e7ccc727503bef617c95dcec1356))
+
+- **deps**: Bump docker/setup-buildx-action from 3 to 4
+  ([`9deda2b`](https://github.com/tvallas/mtr2mqtt/commit/9deda2b72953dda56273764ab75847efd594f22a))
+
+
 ## v0.6.8 (2026-04-17)
 
 ### Bug Fixes
