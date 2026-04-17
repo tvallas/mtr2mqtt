@@ -2,6 +2,31 @@
 
 <!-- version list -->
 
+## v0.6.8 (2026-04-17)
+
+### Bug Fixes
+
+- Add OCI metadata and attestations to docker publish workflow
+  ([`02d681d`](https://github.com/tvallas/mtr2mqtt/commit/02d681db8046b184f17ee745a1951d865e8070ac))
+
+- Allow docker publish attestations from semantic release
+  ([`9529bc9`](https://github.com/tvallas/mtr2mqtt/commit/9529bc9980a9cf117a7dc6d5134fa4c2560dc3b9))
+
+- Fix accidental typo in the runner tag
+  ([`1ac0fb6`](https://github.com/tvallas/mtr2mqtt/commit/1ac0fb6ae88a37d0140cf90a3309f95e20434e64))
+
+- Fix semanteic release job permissions
+  ([`0e9a47f`](https://github.com/tvallas/mtr2mqtt/commit/0e9a47f9421087b13754981b67d8101a50f98673))
+
+### Continuous Integration
+
+- Add OCI metadata and attestations to Docker publish workflow
+  ([`184fd75`](https://github.com/tvallas/mtr2mqtt/commit/184fd7517711fd981015c4e2ec59c3cb86a21378))
+
+- Modernize Trivy security scanning workflow
+  ([`ac8e0e0`](https://github.com/tvallas/mtr2mqtt/commit/ac8e0e0ffcdfe85c7e573ed6a595b68a6f5c68ee))
+
+
 ## v0.6.7 (2026-04-16)
 
 ### Bug Fixes
