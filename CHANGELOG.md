@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.7.1 (2026-04-18)
+
+### Bug Fixes
+
+- **cli**: Recover from serial device disconnects
+  ([`dcf1527`](https://github.com/tvallas/mtr2mqtt/commit/dcf15275fddd9b757bfae3db0f655def18496246))
+
+
 ## v0.7.0 (2026-04-18)
 
 ### Documentation
