@@ -4,8 +4,19 @@
   description: 'Ambient air temperature'
   unit: '°C'
   quantity: 'Temperature'
+  ha:
+    name: 'Ambient'
+    device_class: 'temperature'
+    state_class: 'measurement'
+    suggested_display_precision: 1
+    icon: 'mdi:thermometer'
 - id: 54321
   location: 'Living room'
   unit: '%'
   description: 'Ambient air humidity'
   quantity: 'Humidity'
+- id: 60001
+  location: 'Utility room'
+  description: 'Line pressure'
+  unit: 'hPa'
+  quantity: 'Pressure'

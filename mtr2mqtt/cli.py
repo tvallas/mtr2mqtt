@@ -7,8 +7,9 @@ Functions
     main()
 
 """
+
 from importlib.metadata import version
-from argparse import ArgumentParser
+from argparse import ArgumentParser, BooleanOptionalAction
 import logging
 import sys
 import time
@@ -21,6 +22,17 @@ import serial
 from mtr2mqtt import scl
 from mtr2mqtt import mtr
 from mtr2mqtt import metadata
+from mtr2mqtt import homeassistant
+
+
+def _env_flag(name, default=False):
+    """
+    Parse a boolean environment variable with a fallback default.
+    """
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.lower() in ["true", "1", "yes", "on"]
 
 
 def create_parser():
@@ -33,28 +45,30 @@ def create_parser():
     """)
 
     parser.add_argument(
-        "--serial-port", '-s',
+        "--serial-port",
+        "-s",
         help="Serial port for MTR series receiver (ENV: MTR2MQTT_SERIAL_PORT)",
-        default=os.environ.get('MTR2MQTT_SERIAL_PORT'),
-        required=False
-        )
+        default=os.environ.get("MTR2MQTT_SERIAL_PORT"),
+        required=False,
+    )
     parser.add_argument(
         "--baudrate",
         help="Serial port baud rate",
-        default=int(os.environ.get('MTR2MQTT_BAUDRATE', 9600)),
+        default=int(os.environ.get("MTR2MQTT_BAUDRATE", 9600)),
         required=False,
         type=int,
-        choices=[9600, 115200]
-        )
+        choices=[9600, 115200],
+    )
     parser.add_argument(
         "--bytesize",
         help="Serial port byte size",
         default=EIGHTBITS,
         required=False,
-        choices=[FIVEBITS, SIXBITS,SEVENBITS, EIGHTBITS]
-        )
+        choices=[FIVEBITS, SIXBITS, SEVENBITS, EIGHTBITS],
+    )
     parser.add_argument(
-        "--parity", help="Serial port parity",
+        "--parity",
+        help="Serial port parity",
         default=serial.PARITY_NONE,
         required=False,
         choices=[
@@ -62,69 +76,107 @@ def create_parser():
             serial.PARITY_EVEN,
             serial.PARITY_ODD,
             serial.PARITY_MARK,
-            serial.PARITY_SPACE
-            ]
-        )
+            serial.PARITY_SPACE,
+        ],
+    )
     parser.add_argument(
         "--stopbits",
         help="Serial port stop bits",
         default=serial.STOPBITS_ONE,
         required=False,
-        choices=[serial.STOPBITS_ONE, serial.STOPBITS_TWO]
-        )
+        choices=[serial.STOPBITS_ONE, serial.STOPBITS_TWO],
+    )
     parser.add_argument(
         "--serial-timeout",
         help="Timeout for serial port (ENV: MTR2MQTT_SERIAL_TIMEOUT)",
-        default=int(os.environ.get('MTR2MQTT_SERIAL_TIMEOUT', 1)),
-        required=False
-        )
+        default=int(os.environ.get("MTR2MQTT_SERIAL_TIMEOUT", 1)),
+        required=False,
+    )
     parser.add_argument(
         "--scl-address",
         help="SCL address 0...123 or 126 for broadcast (ENV: MTR2MQTT_SCL_ADDRESS)",
-        default=int(os.environ.get('MTR2MQTT_SCL_ADDRESS', 126)),
+        default=int(os.environ.get("MTR2MQTT_SCL_ADDRESS", 126)),
         required=False,
         type=int,
-        choices=(list(range(124))+[126]),
-        metavar='' # for hiding the messy choices output
-        )
+        choices=(list(range(124)) + [126]),
+        metavar="",  # for hiding the messy choices output
+    )
     parser.add_argument(
-        "--mqtt-host", '-m',
+        "--mqtt-host",
+        "-m",
         help="MQTT host address (ENV: MTR2MQTT_MQTT_HOST)",
-        default=os.environ.get('MTR2MQTT_MQTT_HOST'),
-        required=False)
-    parser.add_argument(
-        "--mqtt-port", '-p',
-        help="MQTT host port (ENV: MTR2MQTT_MQTT_PORT)",
-        default=int(os.environ.get('MTR2MQTT_MQTT_PORT', 1883)),
-        required=False)
-    parser.add_argument(
-        "--metadata-file",'-f',
-        help="A file for transmitter metadata (ENV: MTR2MQTT_METADATA_FILE)",
-        default=os.environ.get('MTR2MQTT_METADATA_FILE'),
+        default=os.environ.get("MTR2MQTT_MQTT_HOST"),
         required=False,
-        type=str
-        )
+    )
+    parser.add_argument(
+        "--mqtt-port",
+        "-p",
+        help="MQTT host port (ENV: MTR2MQTT_MQTT_PORT)",
+        default=int(os.environ.get("MTR2MQTT_MQTT_PORT", 1883)),
+        required=False,
+    )
+    parser.add_argument(
+        "--metadata-file",
+        "-f",
+        help="A file for transmitter metadata (ENV: MTR2MQTT_METADATA_FILE)",
+        default=os.environ.get("MTR2MQTT_METADATA_FILE"),
+        required=False,
+        type=str,
+    )
+    parser.add_argument(
+        "--ha-discovery",
+        help="Enable Home Assistant MQTT discovery " "(ENV: MTR2MQTT_HA_DISCOVERY)",
+        default=_env_flag("MTR2MQTT_HA_DISCOVERY", False),
+        action=BooleanOptionalAction,
+        required=False,
+    )
+    parser.add_argument(
+        "--ha-discovery-prefix",
+        help="Home Assistant discovery prefix " "(ENV: MTR2MQTT_HA_DISCOVERY_PREFIX)",
+        default=os.environ.get("MTR2MQTT_HA_DISCOVERY_PREFIX", "homeassistant"),
+        required=False,
+        type=str,
+    )
+    parser.add_argument(
+        "--ha-discovery-retain",
+        help="Retain Home Assistant discovery payloads "
+        "(ENV: MTR2MQTT_HA_DISCOVERY_RETAIN)",
+        default=_env_flag("MTR2MQTT_HA_DISCOVERY_RETAIN", True),
+        action=BooleanOptionalAction,
+        required=False,
+    )
+    parser.add_argument(
+        "--ha-discovery-node-id",
+        help="Optional node id namespace for Home Assistant discovery "
+        "(ENV: MTR2MQTT_HA_DISCOVERY_NODE_ID)",
+        default=os.environ.get("MTR2MQTT_HA_DISCOVERY_NODE_ID"),
+        required=False,
+        type=str,
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
-        "--debug", '-d',
+        "--debug",
+        "-d",
         help="Enable pringing debug messages (ENV: MTR2MQTT_DEBUG)",
         required=False,
-        default=os.environ.get('MTR2MQTT_DEBUG', 'False').lower() in ['true', '1'],
-        action='store_true'
-        )
+        default=os.environ.get("MTR2MQTT_DEBUG", "False").lower() in ["true", "1"],
+        action="store_true",
+    )
     group.add_argument(
-        "--quiet", '-q',
+        "--quiet",
+        "-q",
         help="Print only error messages (ENV: MTR2MQTT_QUIET)",
         required=False,
-        default=os.environ.get('MTR2MQTT_QUIET', 'False').lower() in ['true', '1'],
-        action='store_true'
-        )
+        default=os.environ.get("MTR2MQTT_QUIET", "False").lower() in ["true", "1"],
+        action="store_true",
+    )
     group.add_argument(
-        "--version", "-v",
+        "--version",
+        "-v",
         help="Print the mtr2mqtt version number and exit",
         required=False,
         default=False,
-        action='store_true'
+        action="store_true",
     )
 
     return parser
@@ -137,7 +189,7 @@ def _open_receiver_port(args):
 
     # Trying to find MTR compatible receiver
     # Filtering ports with Nokeval manufactured models that MTR receivers might use
-    serial_ports = list(list_ports.grep('RTR|FTR|DCS|DPR'))
+    serial_ports = list(list_ports.grep("RTR|FTR|DCS|DPR"))
 
     ser = serial.Serial()
 
@@ -150,10 +202,10 @@ def _open_receiver_port(args):
                 bytesize=args.bytesize,
                 parity=args.parity,
                 stopbits=args.stopbits,
-                timeout=args.serial_timeout
-                )
+                timeout=args.serial_timeout,
+            )
             if ser.is_open:
-                device_type = scl.get_receiver_type(ser,args.scl_address)
+                device_type = scl.get_receiver_type(ser, args.scl_address)
                 if device_type:
                     print(f"Connected device type: {device_type}")
         except serial.serialutil.SerialException:
@@ -171,18 +223,19 @@ def _open_receiver_port(args):
                     bytesize=args.bytesize,
                     parity=args.parity,
                     stopbits=args.stopbits,
-                    timeout=args.serial_timeout
-                    )
+                    timeout=args.serial_timeout,
+                )
                 if ser.is_open:
-                    device_type = scl.get_receiver_type(ser,args.scl_address)
+                    device_type = scl.get_receiver_type(ser, args.scl_address)
                     if device_type:
                         print(f"Connected device type: {device_type}")
             except serial.serialutil.SerialException:
                 pass
     return ser
 
+
 def _get_latest_from_ring_buffer(ser, scl_dbg_1_command, serial_config):
-    """"
+    """ "
     Get latest packet from MTR receiver ring buffer
     """
     try:
@@ -190,8 +243,10 @@ def _get_latest_from_ring_buffer(ser, scl_dbg_1_command, serial_config):
         logging.debug("Wrote message: %s to: to %s", scl_dbg_1_command, ser.name)
         response = ser.read_until(scl.END_CHAR)
         response_checksum = bytes(ser.read(1))
-        parsed_response = scl.parse_response(response,response_checksum)
-        logging.debug("response: %s, response checksum: %s", response, response_checksum)
+        parsed_response = scl.parse_response(response, response_checksum)
+        logging.debug(
+            "response: %s, response checksum: %s", response, response_checksum
+        )
         logging.debug("parsed SCL response: %s", parsed_response)
     except OSError:
         logging.exception("OS Error: Reading to serial port failed")
@@ -212,8 +267,9 @@ def _get_latest_from_ring_buffer(ser, scl_dbg_1_command, serial_config):
             time.sleep(1)
     return parsed_response
 
+
 def on_connect(client, userdata, flags, reason_code, properties):
-    """"
+    """ "
     Handles actions on MQTT connect
     """
     logging.debug(
@@ -223,13 +279,14 @@ def on_connect(client, userdata, flags, reason_code, properties):
         properties,
     )
     if reason_code == 0:
-        client.connected_flag = True #set flag
+        client.connected_flag = True  # set flag
         logging.info("MQTT server connected OK")
     else:
         logging.warning("Bad connection Returned code=%s", str(reason_code))
 
+
 def on_disconnect(client, userdata, disconnect_flags, reason_code, properties):
-    """"
+    """ "
     Handles actions on MQTT disconnect
     """
     logging.warning(
@@ -239,26 +296,27 @@ def on_disconnect(client, userdata, disconnect_flags, reason_code, properties):
         disconnect_flags,
         properties,
     )
-    client.connected_flag=False
-    client.disconnect_flag=True
+    client.connected_flag = False
+    client.disconnect_flag = True
+
 
 def _open_mqtt_connection(args):
     """
     Get MQTT client
     """
 
-    mqtt.Client.connected_flag = False #create flag in class
+    mqtt.Client.connected_flag = False  # create flag in class
     client = mqtt.Client(
         callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
-        client_id='mtr2mqtt',
+        client_id="mtr2mqtt",
         userdata=None,
         protocol=mqtt.MQTTv311,
-        transport="tcp"
+        transport="tcp",
     )
     client.enable_logger()
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
-    mqtt_host = 'localhost'
+    mqtt_host = "localhost"
     mqtt_port = 1883
     if args.mqtt_host:
         mqtt_host = args.mqtt_host
@@ -270,7 +328,7 @@ def _open_mqtt_connection(args):
     print(f"Connecting to MQTT host: {mqtt_host}:{mqtt_port}")
     try:
         client.connect(mqtt_host, mqtt_port)
-        while not client.connected_flag: #wait in loop
+        while not client.connected_flag:  # wait in loop
             logging.debug("Waiting for MQTT connection")
             time.sleep(1)
     except (mqtt.socket.timeout, mqtt.socket.error) as e:
@@ -278,19 +336,21 @@ def _open_mqtt_connection(args):
         sys.exit(-1)
     return client
 
+
 def configure_logging(args):
     """
     Configure logging based on the provided arguments.
     """
-    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     if args.debug:
         logging.basicConfig(level=logging.DEBUG, format=log_format)
         print("Debug logging enabled")
     elif args.quiet:
         logging.basicConfig(level=logging.WARNING)
     else:
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
         sys.tracebacklimit = 0
+
 
 def load_metadata(args):
     """
@@ -300,13 +360,61 @@ def load_metadata(args):
         return metadata.loadfile(args.metadata_file)
     return None
 
+
 def get_scl_commands(args):
     """
     Create SCL commands based on the provided arguments.
     """
-    scl_sn_command = scl.create_command('SN ?', args.scl_address)
-    scl_dbg_1_command = scl.create_command('DBG 1 ?', args.scl_address)
+    scl_sn_command = scl.create_command("SN ?", args.scl_address)
+    scl_dbg_1_command = scl.create_command("DBG 1 ?", args.scl_address)
     return scl_sn_command, scl_dbg_1_command
+
+
+def create_discovery_publisher(args):
+    """
+    Create a Home Assistant discovery publisher when enabled.
+    """
+    if not args.ha_discovery:
+        return None
+    return homeassistant.DiscoveryPublisher(
+        discovery_prefix=args.ha_discovery_prefix,
+        retain=args.ha_discovery_retain,
+        node_id=args.ha_discovery_node_id,
+    )
+
+
+def _publish_measurement(
+    mqtt_client,
+    receiver_serial_number,
+    measurement_json,
+    ha_discovery_publisher=None,
+):
+    """
+    Publish discovery first when enabled, then publish the measurement.
+    """
+    measurement = json.loads(measurement_json)
+    sensor_id = measurement["id"]
+
+    if ha_discovery_publisher:
+        ha_discovery_publisher.publish_if_needed(
+            mqtt_client,
+            receiver_serial_number,
+            measurement,
+        )
+
+    result, mid = mqtt_client.publish(
+        homeassistant.state_topic(receiver_serial_number, sensor_id),
+        payload=measurement_json,
+        qos=1,
+        retain=False,
+    )
+    logging.debug("publish result: %s, mid: %s", result, mid)
+    if result != 0:
+        logging.warning(
+            "Sending message: %s failed with result code: %s", measurement_json, result
+        )
+    return result, mid
+
 
 def main():
     """
@@ -338,36 +446,35 @@ def main():
     print(f"Receiver S/N: {receiver_serial_number}")
 
     mqtt_client = _open_mqtt_connection(args)
+    ha_discovery_publisher = create_discovery_publisher(args)
 
     try:
         while True:
-            response = _get_latest_from_ring_buffer(ser, scl_dbg_1_command, serial_config)
+            response = _get_latest_from_ring_buffer(
+                ser, scl_dbg_1_command, serial_config
+            )
             # Character # is returned when the buffer is empty
             if response != "#":
-                measurement_json = mtr.mtr_response_to_json(response, transmitters_metadata)
+                measurement_json = mtr.mtr_response_to_json(
+                    response, transmitters_metadata
+                )
                 if measurement_json:
                     logging.info(measurement_json)
-                    (result, mid) = mqtt_client.publish(
-                        f"measurements/{receiver_serial_number}/"
-                        f"{json.loads(measurement_json)['id']}",
-                        payload=measurement_json,
-                        qos=1,
-                        retain=False
+                    _publish_measurement(
+                        mqtt_client,
+                        receiver_serial_number,
+                        measurement_json,
+                        ha_discovery_publisher=ha_discovery_publisher,
                     )
-                    logging.debug("publish result: %s, mid: %s", result, mid)
-                    if result != 0:
-                        logging.warning(
-                            "Sending message: %s failed with result code: %s",
-                            measurement_json, result
-                        )
             else:
-                logging.debug('Ring buffer empty')
+                logging.debug("Ring buffer empty")
                 time.sleep(1)
     except KeyboardInterrupt:
         logging.info("Interrupted by user")
     finally:
         mqtt_client.loop_stop()
         mqtt_client.disconnect()
+
 
 if __name__ == "__main__":
     main()
