@@ -1,6 +1,7 @@
 """
 Tests for cli module
 """
+
 from types import SimpleNamespace
 
 import pytest
@@ -38,6 +39,10 @@ def test_parser_defaults_without_arguments(monkeypatch):
     monkeypatch.delenv("MTR2MQTT_MQTT_HOST", raising=False)
     monkeypatch.delenv("MTR2MQTT_MQTT_PORT", raising=False)
     monkeypatch.delenv("MTR2MQTT_METADATA_FILE", raising=False)
+    monkeypatch.delenv("MTR2MQTT_HA_DISCOVERY", raising=False)
+    monkeypatch.delenv("MTR2MQTT_HA_DISCOVERY_PREFIX", raising=False)
+    monkeypatch.delenv("MTR2MQTT_HA_DISCOVERY_RETAIN", raising=False)
+    monkeypatch.delenv("MTR2MQTT_HA_DISCOVERY_NODE_ID", raising=False)
     monkeypatch.delenv("MTR2MQTT_DEBUG", raising=False)
     monkeypatch.delenv("MTR2MQTT_QUIET", raising=False)
 
@@ -51,6 +56,10 @@ def test_parser_defaults_without_arguments(monkeypatch):
     assert args.mqtt_host is None
     assert args.mqtt_port == 1883
     assert args.metadata_file is None
+    assert args.ha_discovery is False
+    assert args.ha_discovery_prefix == "homeassistant"
+    assert args.ha_discovery_retain is True
+    assert args.ha_discovery_node_id is None
     assert args.debug is False
     assert args.quiet is False
     assert args.version is False
@@ -67,6 +76,10 @@ def test_parser_reads_environment_defaults(monkeypatch):
     monkeypatch.setenv("MTR2MQTT_MQTT_HOST", "mqtt.example")
     monkeypatch.setenv("MTR2MQTT_MQTT_PORT", "1884")
     monkeypatch.setenv("MTR2MQTT_METADATA_FILE", "tests/metadata.yml")
+    monkeypatch.setenv("MTR2MQTT_HA_DISCOVERY", "true")
+    monkeypatch.setenv("MTR2MQTT_HA_DISCOVERY_PREFIX", "ha")
+    monkeypatch.setenv("MTR2MQTT_HA_DISCOVERY_RETAIN", "false")
+    monkeypatch.setenv("MTR2MQTT_HA_DISCOVERY_NODE_ID", "bridge-1")
     monkeypatch.setenv("MTR2MQTT_DEBUG", "true")
     monkeypatch.delenv("MTR2MQTT_QUIET", raising=False)
 
@@ -80,6 +93,10 @@ def test_parser_reads_environment_defaults(monkeypatch):
     assert args.mqtt_host == "mqtt.example"
     assert args.mqtt_port == 1884
     assert args.metadata_file == "tests/metadata.yml"
+    assert args.ha_discovery is True
+    assert args.ha_discovery_prefix == "ha"
+    assert args.ha_discovery_retain is False
+    assert args.ha_discovery_node_id == "bridge-1"
     assert args.debug is True
     assert args.quiet is False
 
@@ -108,6 +125,28 @@ def test_parser_quiet_flag_enables_quiet():
     assert args.version is False
 
 
+def test_parser_home_assistant_flags():
+    """
+    The parser accepts Home Assistant discovery options.
+    """
+    parser = cli.create_parser()
+    args = parser.parse_args(
+        [
+            "--ha-discovery",
+            "--ha-discovery-prefix",
+            "ha",
+            "--no-ha-discovery-retain",
+            "--ha-discovery-node-id",
+            "bridge-1",
+        ]
+    )
+
+    assert args.ha_discovery is True
+    assert args.ha_discovery_prefix == "ha"
+    assert args.ha_discovery_retain is False
+    assert args.ha_discovery_node_id == "bridge-1"
+
+
 def test_parser_rejects_debug_and_quiet_together():
     """
     Mutually exclusive debug and quiet flags cannot be used together.
@@ -123,14 +162,22 @@ def test_parser_parses_common_options():
     The parser accepts common numeric and file options.
     """
     parser = cli.create_parser()
-    args = parser.parse_args([
-        "--mqtt-host", "localhost",
-        "--mqtt-port", "1885",
-        "--baudrate", "115200",
-        "--serial-timeout", "2",
-        "--scl-address", "0",
-        "--metadata-file", "tests/metadata.yml",
-    ])
+    args = parser.parse_args(
+        [
+            "--mqtt-host",
+            "localhost",
+            "--mqtt-port",
+            "1885",
+            "--baudrate",
+            "115200",
+            "--serial-timeout",
+            "2",
+            "--scl-address",
+            "0",
+            "--metadata-file",
+            "tests/metadata.yml",
+        ]
+    )
 
     assert args.mqtt_host == "localhost"
     assert args.mqtt_port == "1885"
@@ -192,3 +239,106 @@ def test_open_mqtt_connection_uses_callback_api_v2(monkeypatch):
     assert captured["loop_start"] is True
     assert client.on_connect is cli.on_connect
     assert client.on_disconnect is cli.on_disconnect
+
+
+def test_create_discovery_publisher_returns_none_when_disabled():
+    """
+    Discovery publisher creation is skipped unless discovery is enabled.
+    """
+    args = SimpleNamespace(
+        ha_discovery=False,
+        ha_discovery_prefix="homeassistant",
+        ha_discovery_retain=True,
+        ha_discovery_node_id=None,
+    )
+
+    assert cli.create_discovery_publisher(args) is None
+
+
+def test_create_discovery_publisher_uses_cli_configuration():
+    """
+    Discovery publisher creation preserves the configured prefix, retain, and node id.
+    """
+    args = SimpleNamespace(
+        ha_discovery=True,
+        ha_discovery_prefix="ha",
+        ha_discovery_retain=False,
+        ha_discovery_node_id="bridge-1",
+    )
+
+    publisher = cli.create_discovery_publisher(args)
+
+    assert publisher.discovery_prefix == "ha"
+    assert publisher.retain is False
+    assert publisher.node_id == "bridge-1"
+
+
+def test_publish_measurement_publishes_discovery_first():
+    """
+    Measurement publishing keeps the normal state topic and publishes discovery first.
+    """
+
+    class FakeClient:
+        def __init__(self):
+            self.calls = []
+
+        def publish(self, topic, **kwargs):
+            self.calls.append((topic, kwargs))
+            return (0, len(self.calls))
+
+    client = FakeClient()
+    publisher = cli.homeassistant.DiscoveryPublisher("homeassistant", retain=True)
+    measurement_json = (
+        '{"id":"15006","type":"FT10","reading":22.9,"battery":2.6,"rsl":-69}'
+    )
+
+    result, mid = cli._publish_measurement(
+        client,
+        "RTR970123",
+        measurement_json,
+        ha_discovery_publisher=publisher,
+    )
+
+    assert result == 0
+    assert mid == 2
+    assert client.calls[0][0] == "homeassistant/device/15006/config"
+    assert client.calls[0][1]["qos"] == 1
+    assert client.calls[0][1]["retain"] is True
+    assert client.calls[1][0] == "measurements/RTR970123/15006"
+    assert client.calls[1][1]["payload"] == measurement_json
+    assert client.calls[1][1]["retain"] is False
+
+
+def test_publish_measurement_without_discovery_keeps_normal_publish_behavior():
+    """
+    Measurement publishing still works unchanged when discovery is disabled.
+    """
+
+    class FakeClient:
+        def __init__(self):
+            self.calls = []
+
+        def publish(self, topic, **kwargs):
+            self.calls.append((topic, kwargs))
+            return (0, 1)
+
+    client = FakeClient()
+    measurement_json = (
+        '{"id":"15006","type":"FT10","reading":22.9,"battery":2.6,"rsl":-69}'
+    )
+
+    result, mid = cli._publish_measurement(
+        client,
+        "RTR970123",
+        measurement_json,
+        ha_discovery_publisher=None,
+    )
+
+    assert result == 0
+    assert mid == 1
+    assert client.calls == [
+        (
+            "measurements/RTR970123/15006",
+            {"payload": measurement_json, "qos": 1, "retain": False},
+        )
+    ]
