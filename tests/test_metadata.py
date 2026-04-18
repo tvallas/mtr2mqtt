@@ -2,8 +2,8 @@
 Tests for metadata module
 """
 import json
-from pathlib import Path
 
+import pytest
 from context import mtr2mqtt
 from mtr2mqtt import metadata
 
@@ -113,6 +113,25 @@ def test_metadata_loadfile_with_unexpected_mapping_content(tmp_path):
     })
 
 
+def test_metadata_loadfile_raises_for_missing_file():
+    """
+    Missing metadata files raise a typed metadata error.
+    """
+    with pytest.raises(metadata.MetadataError):
+        metadata.loadfile("tests/does-not-exist.yml")
+
+
+def test_metadata_loadfile_raises_for_invalid_yaml(tmp_path):
+    """
+    Invalid YAML metadata is surfaced as a metadata error.
+    """
+    metadata_file = tmp_path / "invalid_metadata.yml"
+    metadata_file.write_text(":\n  bad\n", encoding="utf-8")
+
+    with pytest.raises(metadata.MetadataError):
+        metadata.loadfile(str(metadata_file))
+
+
 def test_metadata_get_data_accepts_string_transmitter_id():
     """
     metadata.get_data converts a string transmitter id to int before lookup.
@@ -121,3 +140,17 @@ def test_metadata_get_data_accepts_string_transmitter_id():
         "2345",
         METADATA_TEST_FILE_OUTPUT
     ) == METADATA_TEST_TRANSMITTER_OUTPUT
+
+
+def test_metadata_get_data_returns_none_for_invalid_json_payload():
+    """
+    Invalid metadata JSON content is ignored.
+    """
+    assert metadata.get_data(2345, "{") is None
+
+
+def test_metadata_get_data_returns_none_for_invalid_transmitter_id():
+    """
+    Invalid transmitter ids do not raise during lookup.
+    """
+    assert metadata.get_data("not-a-number", METADATA_TEST_FILE_OUTPUT) is None

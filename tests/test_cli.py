@@ -101,6 +101,16 @@ def test_parser_reads_environment_defaults(monkeypatch):
     assert args.quiet is False
 
 
+def test_parser_rejects_invalid_integer_environment_default(monkeypatch):
+    """
+    Invalid integer environment defaults raise a clear configuration error.
+    """
+    monkeypatch.setenv("MTR2MQTT_MQTT_PORT", "abc")
+
+    with pytest.raises(cli.CliConfigurationError):
+        cli.create_parser()
+
+
 def test_parser_debug_flag_enables_debug():
     """
     The debug flag is parsed as a boolean store_true option.
@@ -180,9 +190,9 @@ def test_parser_parses_common_options():
     )
 
     assert args.mqtt_host == "localhost"
-    assert args.mqtt_port == "1885"
+    assert args.mqtt_port == 1885
     assert args.baudrate == 115200
-    assert args.serial_timeout == "2"
+    assert args.serial_timeout == 2
     assert args.scl_address == 0
     assert args.metadata_file == "tests/metadata.yml"
 
@@ -263,3 +273,16 @@ def test_main_exits_cleanly_when_runtime_startup_fails(monkeypatch):
 
     assert error.value.code == -1
     assert captured["fatal"] == "startup failed"
+
+
+def test_main_exits_cleanly_when_environment_defaults_are_invalid(monkeypatch, capsys):
+    """
+    CLI reports invalid environment defaults without a traceback.
+    """
+    monkeypatch.setenv("MTR2MQTT_MQTT_PORT", "abc")
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == -1
+    assert "MTR2MQTT_MQTT_PORT must be an integer" in capsys.readouterr().err

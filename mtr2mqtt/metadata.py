@@ -8,28 +8,53 @@ Functions
 """
 
 import logging
-import sys
 import json
 import yaml
+
+
+class MetadataError(Exception):
+    """
+    Raised when transmitter metadata cannot be loaded safely.
+    """
+
 
 def loadfile(file):
     """
     Loads metadata file and returns it as json string
     """
     try:
-        with open(file,'r',encoding="utf-8") as metafile:
+        with open(file, 'r', encoding="utf-8") as metafile:
             transmitter_info = yaml.safe_load(metafile)
             return json.dumps(transmitter_info)
-
-    except FileNotFoundError:
-        logging.exception("File not found")
-        sys.exit(-1)
+    except FileNotFoundError as error:
+        raise MetadataError(f"Metadata file not found: {file}") from error
+    except PermissionError as error:
+        raise MetadataError(f"Metadata file is not readable: {file}") from error
+    except OSError as error:
+        raise MetadataError(f"Unable to read metadata file {file}: {error}") from error
+    except yaml.YAMLError as error:
+        raise MetadataError(f"Metadata file {file} is not valid YAML: {error}") from error
+    except TypeError as error:
+        raise MetadataError(
+            f"Metadata file {file} contains values that cannot be serialized to JSON"
+        ) from error
 
 def get_data(transmitter_id, all_transmitters):
     """
     Gets metada for transmitter
     """
-    all_transmitters = json.loads(all_transmitters)
+    try:
+        all_transmitters = json.loads(all_transmitters)
+    except (TypeError, json.JSONDecodeError):
+        logging.warning("Metadata content is not valid JSON, skipping lookup")
+        return None
+
+    try:
+        transmitter_id = int(transmitter_id)
+    except (TypeError, ValueError):
+        logging.warning("Transmitter id %r is not a valid integer", transmitter_id)
+        return None
+
     logging.debug("All transmitters metadata: %s", all_transmitters)
     logging.debug("Transmitter id: %s", transmitter_id)
     if not isinstance(all_transmitters, list):
@@ -47,7 +72,7 @@ def get_data(transmitter_id, all_transmitters):
             )
             continue
         logging.debug("Iterated transmitter: %s", transmitter)
-        if transmitter.get('id') == int(transmitter_id):
+        if transmitter.get('id') == transmitter_id:
             info = transmitter.copy()
             info.pop('id', None)
             break

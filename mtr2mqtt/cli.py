@@ -17,6 +17,12 @@ from mtr2mqtt.runtime import BridgeError
 from mtr2mqtt.runtime import MtrBridge
 
 
+class CliConfigurationError(Exception):
+    """
+    Raised when CLI arguments or environment defaults are invalid.
+    """
+
+
 def _env_flag(name, default=False):
     """
     Parse a boolean environment variable with a fallback default.
@@ -25,6 +31,21 @@ def _env_flag(name, default=False):
     if value is None:
         return default
     return value.lower() in ["true", "1", "yes", "on"]
+
+
+def _env_int(name, default):
+    """
+    Parse an integer environment variable with a clear configuration error.
+    """
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError as error:
+        raise CliConfigurationError(
+            f"Environment variable {name} must be an integer, got {value!r}"
+        ) from error
 
 
 def create_parser():
@@ -46,7 +67,7 @@ def create_parser():
     parser.add_argument(
         "--baudrate",
         help="Serial port baud rate",
-        default=int(os.environ.get("MTR2MQTT_BAUDRATE", 9600)),
+        default=_env_int("MTR2MQTT_BAUDRATE", 9600),
         required=False,
         type=int,
         choices=[9600, 115200],
@@ -81,13 +102,14 @@ def create_parser():
     parser.add_argument(
         "--serial-timeout",
         help="Timeout for serial port (ENV: MTR2MQTT_SERIAL_TIMEOUT)",
-        default=int(os.environ.get("MTR2MQTT_SERIAL_TIMEOUT", 1)),
+        default=_env_int("MTR2MQTT_SERIAL_TIMEOUT", 1),
         required=False,
+        type=int,
     )
     parser.add_argument(
         "--scl-address",
         help="SCL address 0...123 or 126 for broadcast (ENV: MTR2MQTT_SCL_ADDRESS)",
-        default=int(os.environ.get("MTR2MQTT_SCL_ADDRESS", 126)),
+        default=_env_int("MTR2MQTT_SCL_ADDRESS", 126),
         required=False,
         type=int,
         choices=(list(range(124)) + [126]),
@@ -104,8 +126,9 @@ def create_parser():
         "--mqtt-port",
         "-p",
         help="MQTT host port (ENV: MTR2MQTT_MQTT_PORT)",
-        default=int(os.environ.get("MTR2MQTT_MQTT_PORT", 1883)),
+        default=_env_int("MTR2MQTT_MQTT_PORT", 1883),
         required=False,
+        type=int,
     )
     parser.add_argument(
         "--metadata-file",
@@ -216,7 +239,11 @@ def main():
     """
     Main function.
     """
-    args = create_parser().parse_args()
+    try:
+        args = create_parser().parse_args()
+    except CliConfigurationError as error:
+        sys.stderr.write(f"{error}\n")
+        sys.exit(-1)
 
     if args.version:
         print(version("mtr2mqtt"))
@@ -230,7 +257,7 @@ def main():
     )
     try:
         bridge.run_forever()
-    except BridgeError as error:
+    except (BridgeError, metadata.MetadataError, CliConfigurationError) as error:
         logging.fatal(str(error))
         sys.exit(-1)
 
