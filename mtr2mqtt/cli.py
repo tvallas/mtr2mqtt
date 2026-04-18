@@ -12,6 +12,7 @@ from serial.serialutil import EIGHTBITS, FIVEBITS, SEVENBITS, SIXBITS
 import serial
 
 from mtr2mqtt import homeassistant
+from mtr2mqtt.logging_utils import configure_root_logger
 from mtr2mqtt import metadata
 from mtr2mqtt.runtime import BridgeError
 from mtr2mqtt.runtime import MtrBridge
@@ -202,14 +203,13 @@ def configure_logging(args):
     """
     Configure logging based on the provided arguments.
     """
-    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     if args.debug:
-        logging.basicConfig(level=logging.DEBUG, format=log_format)
-        print("Debug logging enabled")
+        configure_root_logger(debug=True)
+        logging.debug("Debug logging enabled")
     elif args.quiet:
-        logging.basicConfig(level=logging.WARNING)
+        configure_root_logger(quiet=True)
     else:
-        logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+        configure_root_logger()
         sys.tracebacklimit = 0
 
 

@@ -34,6 +34,8 @@ Or define the serial port and mqtt host as parameters:
 mtr2mqtt --serial-port /dev/ttyUSB12345 --mqtt-host 192.168.1.2
 ```
 
+By default, runtime logs are emitted as one JSON object per line. When running in an interactive terminal, JSON keys and values are syntax colored, with standard fields such as `timestamp`, `level`, `logger`, and `message` highlighted consistently. When output is redirected or piped, ANSI color is suppressed so the log stream remains valid JSON.
+
 Enable Home Assistant discovery:
 
 ```sh
