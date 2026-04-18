@@ -251,6 +251,18 @@ def test_open_receiver_connection_raises_receiver_error_for_open_failure(monkeyp
         raise AssertionError("ReceiverConnectionError was not raised")
 
 
+def test_bridge_table_output_requires_tty(monkeypatch):
+    """
+    Table mode is rejected when stdout is not an interactive terminal.
+    """
+    monkeypatch.setattr(runtime.sys.stdout, "isatty", lambda: False)
+
+    with pytest.raises(runtime.OutputModeError) as error:
+        runtime.MtrBridge(SimpleNamespace(scl_address=126, output="table"))
+
+    assert "interactive terminal" in str(error.value)
+
+
 def test_recover_receiver_connection_rediscovery_finds_replugged_receiver(monkeypatch):
     """
     Autodetect mode rescans for a receiver when reopening the old port fails.

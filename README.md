@@ -36,6 +36,8 @@ mtr2mqtt --serial-port /dev/ttyUSB12345 --mqtt-host 192.168.1.2
 
 By default, runtime logs are emitted as one JSON object per line. When running in an interactive terminal, JSON keys and values are syntax colored, with standard fields such as `timestamp`, `level`, `logger`, and `message` highlighted consistently. When output is redirected or piped, ANSI color is suppressed so the log stream remains valid JSON.
 
+For a human-focused live view, use `--output table`. In this mode, the console shows the latest reading for each sensor in a continuously refreshed table instead of printing each measurement as a log line. The table starts with a stable set of core columns and automatically adds extra columns for additional measurement or metadata fields when they appear. The nested `ha` metadata block is excluded from the table. Table output requires an interactive terminal.
+
 Enable Home Assistant discovery:
 
 ```sh
@@ -46,6 +48,12 @@ Use a custom discovery prefix or node id:
 
 ```sh
 mtr2mqtt --ha-discovery --ha-discovery-prefix ha --ha-discovery-node-id mtr-bridge-1
+```
+
+Use the live table view:
+
+```sh
+mtr2mqtt -f metadata.yml --output table
 ```
 
 ### Using Docker

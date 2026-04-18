@@ -140,6 +140,13 @@ def create_parser():
         type=str,
     )
     parser.add_argument(
+        "--output",
+        help="Console output mode (ENV: MTR2MQTT_OUTPUT)",
+        default=os.environ.get("MTR2MQTT_OUTPUT", "json"),
+        required=False,
+        choices=["json", "table"],
+    )
+    parser.add_argument(
         "--ha-discovery",
         help="Enable Home Assistant MQTT discovery (ENV: MTR2MQTT_HA_DISCOVERY)",
         default=_env_flag("MTR2MQTT_HA_DISCOVERY", False),
@@ -206,7 +213,7 @@ def configure_logging(args):
     if args.debug:
         configure_root_logger(debug=True)
         logging.debug("Debug logging enabled")
-    elif args.quiet:
+    elif args.quiet or args.output == "table":
         configure_root_logger(quiet=True)
     else:
         configure_root_logger()
@@ -249,13 +256,13 @@ def main():
         print(version("mtr2mqtt"))
         sys.exit(0)
 
-    configure_logging(args)
-    bridge = MtrBridge(
-        args,
-        transmitters_metadata=load_metadata(args),
-        discovery_publisher=create_discovery_publisher(args),
-    )
     try:
+        configure_logging(args)
+        bridge = MtrBridge(
+            args,
+            transmitters_metadata=load_metadata(args),
+            discovery_publisher=create_discovery_publisher(args),
+        )
         bridge.run_forever()
     except (BridgeError, metadata.MetadataError, CliConfigurationError) as error:
         logging.fatal(str(error))
