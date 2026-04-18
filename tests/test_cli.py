@@ -227,3 +227,39 @@ def test_create_discovery_publisher_uses_cli_configuration():
     assert publisher.discovery_prefix == "ha"
     assert publisher.retain is False
     assert publisher.node_id == "bridge-1"
+
+
+def test_main_exits_cleanly_when_runtime_startup_fails(monkeypatch):
+    """
+    CLI owns process exit behavior for runtime startup failures.
+    """
+    args = SimpleNamespace(version=False)
+    captured = {}
+
+    class FakeBridge:
+        def __init__(self, *_args, **_kwargs):
+            return None
+
+        def run_forever(self):
+            raise cli.BridgeError("startup failed")
+
+    monkeypatch.setattr(
+        cli,
+        "create_parser",
+        lambda: SimpleNamespace(parse_args=lambda: args),
+    )
+    monkeypatch.setattr(cli, "configure_logging", lambda _args: None)
+    monkeypatch.setattr(cli, "load_metadata", lambda _args: None)
+    monkeypatch.setattr(cli, "create_discovery_publisher", lambda _args: None)
+    monkeypatch.setattr(cli, "MtrBridge", FakeBridge)
+    monkeypatch.setattr(
+        cli.logging,
+        "fatal",
+        lambda message: captured.setdefault("fatal", message),
+    )
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == -1
+    assert captured["fatal"] == "startup failed"

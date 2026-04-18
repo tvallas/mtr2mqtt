@@ -56,6 +56,40 @@ def test_open_mqtt_connection_uses_callback_api_v2(monkeypatch):
     assert client.on_disconnect is runtime.on_disconnect
 
 
+def test_open_mqtt_connection_raises_mqtt_error_on_connect_failure(monkeypatch):
+    """
+    MQTT startup failures are surfaced as runtime exceptions instead of exits.
+    """
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.connected_flag = False
+
+        def enable_logger(self):
+            return None
+
+        def reconnect_delay_set(self, min_delay, max_delay):
+            return None
+
+        def loop_start(self):
+            return None
+
+        def connect(self, host, port):
+            raise runtime.mqtt.socket.error("boom")
+
+    monkeypatch.setattr(runtime.mqtt, "Client", FakeClient)
+    monkeypatch.setattr(runtime.time, "sleep", lambda _: None)
+
+    args = SimpleNamespace(mqtt_host="mqtt.example", mqtt_port=1884)
+
+    try:
+        runtime.open_mqtt_connection(args)
+    except runtime.MqttConnectionError as error:
+        assert "Unable to connect to MQTT host mqtt.example:1884" == str(error)
+    else:
+        raise AssertionError("MqttConnectionError was not raised")
+
+
 def test_open_receiver_connection_rejects_incompatible_explicit_port(monkeypatch):
     """
     Explicit ports must still validate as compatible receivers.
@@ -87,6 +121,33 @@ def test_open_receiver_connection_rejects_incompatible_explicit_port(monkeypatch
 
     assert receiver is None
     assert fake_serial.closed is True
+
+
+def test_open_receiver_connection_raises_receiver_error_for_open_failure(monkeypatch):
+    """
+    Explicit-port failures are surfaced as runtime exceptions instead of exits.
+    """
+    args = SimpleNamespace(
+        serial_port="/dev/cu.usbserial-test",
+        baudrate=9600,
+        bytesize=8,
+        parity="N",
+        stopbits=1,
+        serial_timeout=1,
+        scl_address=126,
+    )
+
+    def raise_serial_error(*_args):
+        raise runtime.serial.serialutil.SerialException("boom")
+
+    monkeypatch.setattr(runtime, "_create_serial_handle", raise_serial_error)
+
+    try:
+        runtime.open_receiver_connection(args)
+    except runtime.ReceiverConnectionError as error:
+        assert "Unable to open serial port /dev/cu.usbserial-test" == str(error)
+    else:
+        raise AssertionError("ReceiverConnectionError was not raised")
 
 
 def test_recover_receiver_connection_rediscovery_finds_replugged_receiver(monkeypatch):
@@ -371,3 +432,19 @@ def test_poll_once_returns_measurement_payload_when_data_is_available(monkeypatc
     assert '"id": "15006"' in result.measurement_json
     assert bridge.state is runtime.BridgeState.READY
 
+
+def test_bridge_start_raises_receiver_error_when_no_receiver_is_found(monkeypatch):
+    """
+    Bridge startup reports missing receivers as a runtime exception.
+    """
+    args = SimpleNamespace(scl_address=126)
+    bridge = runtime.MtrBridge(args)
+
+    monkeypatch.setattr(runtime, "open_receiver_connection", lambda _args: None)
+
+    try:
+        bridge.start()
+    except runtime.ReceiverConnectionError as error:
+        assert "Unable to find MTR receivers" == str(error)
+    else:
+        raise AssertionError("ReceiverConnectionError was not raised")

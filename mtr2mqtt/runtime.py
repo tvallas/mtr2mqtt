@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from enum import Enum
 import json
 import logging
-import sys
 import time
 
 import paho.mqtt.client as mqtt
@@ -21,6 +20,24 @@ from mtr2mqtt import scl
 
 
 SERIAL_PORT_GREP = "RTR|FTR|DCS|DPR"
+
+
+class BridgeError(Exception):
+    """
+    Base exception for runtime-level startup and transport failures.
+    """
+
+
+class ReceiverConnectionError(BridgeError):
+    """
+    Raised when the runtime cannot open or validate the receiver connection.
+    """
+
+
+class MqttConnectionError(BridgeError):
+    """
+    Raised when the runtime cannot connect to the MQTT broker.
+    """
 
 
 @dataclass
@@ -152,7 +169,9 @@ def open_receiver_connection(args):
             return _build_receiver_connection(ser, args, device_type)
         except (serial.serialutil.SerialException, ValueError):
             logging.exception("Unable to open serial port")
-            sys.exit(-1)
+            raise ReceiverConnectionError(
+                f"Unable to open serial port {args.serial_port}"
+            ) from None
 
     for port in list(list_ports.grep(SERIAL_PORT_GREP)):
         try:
@@ -249,7 +268,9 @@ def open_mqtt_connection(args):
             time.sleep(1)
     except (mqtt.socket.timeout, mqtt.socket.error) as error:
         logging.exception("Unable to connect to MQTT host: %s", error)
-        sys.exit(-1)
+        raise MqttConnectionError(
+            f"Unable to connect to MQTT host {mqtt_host}:{mqtt_port}"
+        ) from error
     return client
 
 
@@ -316,8 +337,7 @@ class MtrBridge:
         """
         self.receiver = open_receiver_connection(self.args)
         if not self.receiver:
-            logging.fatal("Unable to find MTR receivers")
-            sys.exit(-1)
+            raise ReceiverConnectionError("Unable to find MTR receivers")
         self.mqtt_client = open_mqtt_connection(self.args)
         self.state = BridgeState.READY
 

@@ -13,6 +13,7 @@ import serial
 
 from mtr2mqtt import homeassistant
 from mtr2mqtt import metadata
+from mtr2mqtt.runtime import BridgeError
 from mtr2mqtt.runtime import MtrBridge
 
 
@@ -227,7 +228,11 @@ def main():
         transmitters_metadata=load_metadata(args),
         discovery_publisher=create_discovery_publisher(args),
     )
-    bridge.run_forever()
+    try:
+        bridge.run_forever()
+    except BridgeError as error:
+        logging.fatal(str(error))
+        sys.exit(-1)
 
 
 if __name__ == "__main__":
