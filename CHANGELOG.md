@@ -2,6 +2,20 @@
 
 <!-- version list -->
 
+## v0.7.4 (2026-04-18)
+
+### Bug Fixes
+
+- **ci**: Repair lint target and narrow exception handling
+  ([`20e56e6`](https://github.com/tvallas/mtr2mqtt/commit/20e56e69b92f7c1ebd76aeab1888900d450a25ab))
+
+- **cli**: Validate startup configuration inputs
+  ([`ad54e70`](https://github.com/tvallas/mtr2mqtt/commit/ad54e70c6dfaa274503760751ff1bf09128289a5))
+
+- **runtime**: Harden receiver and mqtt failure handling
+  ([`d9f57f2`](https://github.com/tvallas/mtr2mqtt/commit/d9f57f2346b99b7727250a0d6415d88b2993d6c4))
+
+
 ## v0.7.3 (2026-04-18)
 
 ### Bug Fixes
