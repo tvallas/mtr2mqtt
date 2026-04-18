@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v0.7.0 (2026-04-18)
+
+### Documentation
+
+- Document Home Assistant MQTT discovery configuration
+  ([`68d503d`](https://github.com/tvallas/mtr2mqtt/commit/68d503d530ea9b6b9babfd233085ba9a972778f9))
+
+### Features
+
+- Add Home Assistant MQTT discovery support
+  ([`0dfad71`](https://github.com/tvallas/mtr2mqtt/commit/0dfad71b87053dc45db5aaf550e70ed320c11a97))
+
+### Testing
+
+- Cover Home Assistant MQTT discovery behavior
+  ([`21d9841`](https://github.com/tvallas/mtr2mqtt/commit/21d9841deecdedbba6e1f26dcfddd686690ff28a))
+
+
 ## v0.6.10 (2026-04-18)
 
 ### Bug Fixes
