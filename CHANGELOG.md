@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.7.2 (2026-04-18)
+
+### Bug Fixes
+
+- **metadata**: Handle unexpected YAML shapes
+  ([`a68313d`](https://github.com/tvallas/mtr2mqtt/commit/a68313deb5c7629d890688a734ab5fa4f3f865aa))
+
+### Documentation
+
+- **agents**: Add repository workflow guidance
+  ([`03b2806`](https://github.com/tvallas/mtr2mqtt/commit/03b2806e2f6e26da973ddb358cbd6d7e645d8d90))
+
+
 ## v0.7.1 (2026-04-18)
 
 ### Bug Fixes
