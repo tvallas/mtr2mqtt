@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.7.3 (2026-04-18)
+
+### Bug Fixes
+
+- **cli**: Handle runtime startup errors
+  ([`18bca65`](https://github.com/tvallas/mtr2mqtt/commit/18bca657ca2ca617f6a834248e7dc410080ea870))
+
+- **runtime**: Isolate bridge lifecycle
+  ([`c9b07f1`](https://github.com/tvallas/mtr2mqtt/commit/c9b07f16702830c50c30b7142c870b3d315406db))
+
+
 ## v0.7.2 (2026-04-18)
 
 ### Bug Fixes
