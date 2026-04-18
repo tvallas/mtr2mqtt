@@ -211,6 +211,9 @@ def test_open_mqtt_connection_uses_callback_api_v2(monkeypatch):
         def enable_logger(self):
             captured["enable_logger"] = True
 
+        def reconnect_delay_set(self, min_delay, max_delay):
+            captured["reconnect_delay_set"] = (min_delay, max_delay)
+
         def loop_start(self):
             captured["loop_start"] = True
 
@@ -235,10 +238,105 @@ def test_open_mqtt_connection_uses_callback_api_v2(monkeypatch):
     assert captured["kwargs"]["protocol"] == cli.mqtt.MQTTv311
     assert captured["kwargs"]["transport"] == "tcp"
     assert captured["connect"] == ("mqtt.example", 1884)
+    assert captured["reconnect_delay_set"] == (1, 30)
     assert captured["enable_logger"] is True
     assert captured["loop_start"] is True
     assert client.on_connect is cli.on_connect
     assert client.on_disconnect is cli.on_disconnect
+
+
+def test_get_latest_from_ring_buffer_returns_none_and_recovers_after_io_error(
+    monkeypatch,
+):
+    """
+    Serial I/O errors do not crash the loop and instead trigger recovery.
+    """
+
+    class BrokenSerial:
+        port = "/dev/cu.usbserial-NA118636"
+        name = port
+
+        def write(self, _command):
+            raise OSError("Device not configured")
+
+    replacement_serial = object()
+    recovery_calls = {}
+
+    def fake_recover(ser, args, serial_config):
+        recovery_calls["args"] = (ser, args, serial_config)
+        return replacement_serial
+
+    monkeypatch.setattr(cli, "_recover_serial_connection", fake_recover)
+    monkeypatch.setattr(cli.time, "sleep", lambda _: None)
+
+    args = SimpleNamespace(serial_port="/dev/cu.usbserial-NA118636", scl_address=126)
+
+    response, recovered_serial = cli._get_latest_from_ring_buffer(
+        BrokenSerial(),
+        b"DBG 1 ?",
+        {"baudrate": 9600},
+        args,
+    )
+
+    assert response is None
+    assert recovered_serial is replacement_serial
+    assert recovery_calls["args"][1] is args
+    assert recovery_calls["args"][2] == {"baudrate": 9600}
+
+
+def test_recover_serial_connection_rediscovery_finds_replugged_receiver(monkeypatch):
+    """
+    Autodetect mode rescans for a receiver when reopening the old port fails.
+    """
+
+    class ExistingSerial:
+        def __init__(self):
+            self.port = "/dev/cu.usbserial-old"
+            self.closed = False
+
+        def close(self):
+            self.closed = True
+
+    class ReopenAttempt:
+        def __init__(self):
+            self.port = None
+
+        def apply_settings(self, _settings):
+            pass
+
+        def open(self):
+            raise FileNotFoundError("device disappeared")
+
+    rediscovered_serial = SimpleNamespace(is_open=True, port="/dev/cu.usbserial-new")
+    current_serial = ExistingSerial()
+
+    monkeypatch.setattr(cli.serial, "Serial", ReopenAttempt)
+    monkeypatch.setattr(cli, "_open_receiver_port", lambda _args: rediscovered_serial)
+
+    recovered = cli._recover_serial_connection(
+        current_serial,
+        SimpleNamespace(serial_port=None, scl_address=126),
+        {"baudrate": 9600},
+    )
+
+    assert current_serial.closed is True
+    assert recovered is rediscovered_serial
+
+
+def test_publish_measurement_skips_while_mqtt_is_disconnected():
+    """
+    Measurements are skipped cleanly when MQTT is temporarily disconnected.
+    """
+
+    client = SimpleNamespace(connected_flag=False)
+    result, mid = cli._publish_measurement(
+        client,
+        "RTR970123",
+        '{"id": "15006", "reading": 22.9}',
+    )
+
+    assert result == cli.mqtt.MQTT_ERR_NO_CONN
+    assert mid is None
 
 
 def test_create_discovery_publisher_returns_none_when_disabled():

@@ -24,6 +24,8 @@ from mtr2mqtt import mtr
 from mtr2mqtt import metadata
 from mtr2mqtt import homeassistant
 
+SERIAL_PORT_GREP = "RTR|FTR|DCS|DPR"
+
 
 def _env_flag(name, default=False):
     """
@@ -186,11 +188,6 @@ def _open_receiver_port(args):
     """
     Open serial port connection
     """
-
-    # Trying to find MTR compatible receiver
-    # Filtering ports with Nokeval manufactured models that MTR receivers might use
-    serial_ports = list(list_ports.grep("RTR|FTR|DCS|DPR"))
-
     ser = serial.Serial()
 
     # Check if serial port was given as argument
@@ -215,6 +212,9 @@ def _open_receiver_port(args):
             logging.exception("Unable to open serial port")
             sys.exit(-1)
     else:
+        # Trying to find MTR compatible receiver
+        # Filtering ports with Nokeval manufactured models that MTR receivers might use
+        serial_ports = list(list_ports.grep(SERIAL_PORT_GREP))
         for port in serial_ports:
             try:
                 ser = serial.Serial(
@@ -229,15 +229,63 @@ def _open_receiver_port(args):
                     device_type = scl.get_receiver_type(ser, args.scl_address)
                     if device_type:
                         print(f"Connected device type: {device_type}")
+                        return ser
+                    ser.close()
             except serial.serialutil.SerialException:
                 pass
     return ser
 
 
-def _get_latest_from_ring_buffer(ser, scl_dbg_1_command, serial_config):
+def _recover_serial_connection(ser, args, serial_config):
+    """
+    Try to restore serial connectivity after a runtime I/O failure.
+    """
+    current_port = ser.port
+
+    try:
+        ser.close()
+    except (OSError, serial.serialutil.SerialException):
+        logging.debug("Closing failed serial port %s raised an exception", current_port)
+
+    if current_port:
+        try:
+            logging.warning("Trying to reopen serial port: %s", current_port)
+            reopened_ser = serial.Serial()
+            reopened_ser.port = current_port
+            reopened_ser.apply_settings(serial_config)
+            reopened_ser.open()
+            device_type = scl.get_receiver_type(reopened_ser, args.scl_address)
+            if device_type:
+                logging.info("Recovered serial connection on %s", current_port)
+                print(f"Connected device type: {device_type}")
+                return reopened_ser
+            logging.warning(
+                "Reopened serial port %s but did not detect a compatible receiver",
+                current_port,
+            )
+            reopened_ser.close()
+        except serial.serialutil.SerialException:
+            logging.exception("Serial exception: opening serial port failed")
+        except FileNotFoundError:
+            logging.exception("File not found: opening serial port failed")
+        except OSError:
+            logging.exception("OS Error: opening serial port failed")
+
+    if not args.serial_port:
+        logging.warning("Trying to rediscover receiver port")
+        ser = _open_receiver_port(args)
+        if ser.is_open:
+            logging.info("Recovered serial connection on rediscovered port %s", ser.port)
+            return ser
+
+    return ser
+
+
+def _get_latest_from_ring_buffer(ser, scl_dbg_1_command, serial_config, args):
     """ "
     Get latest packet from MTR receiver ring buffer
     """
+    parsed_response = None
     try:
         ser.write(scl_dbg_1_command)
         logging.debug("Wrote message: %s to: to %s", scl_dbg_1_command, ser.name)
@@ -248,24 +296,11 @@ def _get_latest_from_ring_buffer(ser, scl_dbg_1_command, serial_config):
             "response: %s, response checksum: %s", response, response_checksum
         )
         logging.debug("parsed SCL response: %s", parsed_response)
-    except OSError:
-        logging.exception("OS Error: Reading to serial port failed")
-        ser.close()
+    except (OSError, serial.serialutil.SerialException):
+        logging.exception("Reading from serial port failed")
         time.sleep(1)
-        try:
-            logging.warning("Trying to reopen serial port")
-            ser.apply_settings(serial_config)
-            ser.open()
-        except serial.serialutil.SerialException:
-            logging.exception("Serial exception: opening serial port failed")
-            time.sleep(1)
-        except FileNotFoundError:
-            logging.exception("File not found: opening serial port failed")
-            time.sleep(1)
-        except OSError:
-            logging.exception("OS Error: opening serial port failed")
-            time.sleep(1)
-    return parsed_response
+        ser = _recover_serial_connection(ser, args, serial_config)
+    return parsed_response, ser
 
 
 def on_connect(client, userdata, flags, reason_code, properties):
@@ -314,6 +349,7 @@ def _open_mqtt_connection(args):
         transport="tcp",
     )
     client.enable_logger()
+    client.reconnect_delay_set(min_delay=1, max_delay=30)
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
     mqtt_host = "localhost"
@@ -395,6 +431,14 @@ def _publish_measurement(
     measurement = json.loads(measurement_json)
     sensor_id = measurement["id"]
 
+    if not getattr(mqtt_client, "connected_flag", True):
+        logging.warning(
+            "Skipping publish for receiver %s sensor %s because MQTT is disconnected",
+            receiver_serial_number,
+            sensor_id,
+        )
+        return mqtt.MQTT_ERR_NO_CONN, None
+
     if ha_discovery_publisher:
         ha_discovery_publisher.publish_if_needed(
             mqtt_client,
@@ -450,9 +494,13 @@ def main():
 
     try:
         while True:
-            response = _get_latest_from_ring_buffer(
-                ser, scl_dbg_1_command, serial_config
+            response, ser = _get_latest_from_ring_buffer(
+                ser, scl_dbg_1_command, serial_config, args
             )
+            if response is None:
+                logging.debug("No readable response from receiver")
+                time.sleep(1)
+                continue
             # Character # is returned when the buffer is empty
             if response != "#":
                 measurement_json = mtr.mtr_response_to_json(
