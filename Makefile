@@ -9,7 +9,7 @@ test:
 	uv run pytest -v
 
 lint:
-	uv run pylint $(find mtr2mqtt -name "*.py" -type f)
+	uv run pylint $$(find mtr2mqtt -name "*.py" -type f)
 
 build:
 	uv build

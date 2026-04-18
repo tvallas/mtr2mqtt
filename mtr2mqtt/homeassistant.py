@@ -257,34 +257,41 @@ class DiscoveryPublisher:
         """
         Publish discovery once when the first real measurement arrives.
         """
-        sensor_id = str(measurement["id"])
-        cache_key = (str(receiver_serial_number), sensor_id)
-        if cache_key in self._published:
-            return True
+        try:
+            sensor_id = str(measurement["id"])
+            cache_key = (str(receiver_serial_number), sensor_id)
+            if cache_key in self._published:
+                return True
 
-        topic = discovery_topic(
-            self.discovery_prefix,
-            receiver_serial_number,
-            sensor_id,
-            node_id=self.node_id,
-        )
-        payload = build_discovery_payload(receiver_serial_number, measurement)
-        result, mid = mqtt_client.publish(
-            topic,
-            payload=payload,
-            qos=1,
-            retain=self.retain,
-        )
-        logging.debug("HA discovery publish result: %s, mid: %s", result, mid)
-        if result == 0:
-            self._published.add(cache_key)
-            return True
+            topic = discovery_topic(
+                self.discovery_prefix,
+                receiver_serial_number,
+                sensor_id,
+                node_id=self.node_id,
+            )
+            payload = build_discovery_payload(receiver_serial_number, measurement)
+            result, mid = mqtt_client.publish(
+                topic,
+                payload=payload,
+                qos=1,
+                retain=self.retain,
+            )
+            logging.debug("HA discovery publish result: %s, mid: %s", result, mid)
+            if result == 0:
+                self._published.add(cache_key)
+                return True
 
-        logging.warning(
-            "Sending Home Assistant discovery for receiver %s sensor %s failed "
-            "with result code: %s",
-            receiver_serial_number,
-            sensor_id,
-            result,
-        )
-        return False
+            logging.warning(
+                "Sending Home Assistant discovery for receiver %s sensor %s failed "
+                "with result code: %s",
+                receiver_serial_number,
+                sensor_id,
+                result,
+            )
+            return False
+        except (OSError, RuntimeError, TypeError, ValueError, KeyError):
+            logging.exception(
+                "Home Assistant discovery publish raised an exception for receiver %s",
+                receiver_serial_number,
+            )
+            return False

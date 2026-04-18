@@ -87,8 +87,11 @@ def on_connect(client, userdata, flags, reason_code, properties):
     )
     if reason_code == 0:
         client.connected_flag = True
+        client.connect_error = None
         logging.info("MQTT server connected OK")
     else:
+        client.connected_flag = False
+        client.connect_error = reason_code
         logging.warning("Bad connection Returned code=%s", str(reason_code))
 
 
@@ -122,17 +125,21 @@ def _read_receiver_serial_number(ser, scl_address):
     """
     Query the receiver serial number from an open and validated port.
     """
-    scl_sn_command = scl.create_command("SN ?", scl_address)
-    ser.write(scl_sn_command)
-    logging.debug("Wrote message: %s to: %s", scl_sn_command, ser.name)
-    response = ser.read_until(scl.END_CHAR)
-    response_checksum = bytes(ser.read(1))
-    receiver_serial_number = scl.parse_response(response, response_checksum)
-    if receiver_serial_number:
-        return receiver_serial_number
+    try:
+        scl_sn_command = scl.create_command("SN ?", scl_address)
+        ser.write(scl_sn_command)
+        logging.debug("Wrote message: %s to: %s", scl_sn_command, ser.name)
+        response = ser.read_until(scl.END_CHAR)
+        response_checksum = bytes(ser.read(1))
+        receiver_serial_number = scl.parse_response(response, response_checksum)
+        if receiver_serial_number:
+            return receiver_serial_number
 
-    logging.warning("Unable to read receiver serial number from port %s", ser.name)
-    return None
+        logging.warning("Unable to read receiver serial number from port %s", ser.name)
+        return None
+    except (OSError, serial.serialutil.SerialException):
+        logging.exception("Reading receiver serial number failed on port %s", ser.name)
+        return None
 
 
 def _build_receiver_connection(ser, args, device_type):
@@ -167,7 +174,7 @@ def open_receiver_connection(args):
                 ser.close()
                 return None
             return _build_receiver_connection(ser, args, device_type)
-        except (serial.serialutil.SerialException, ValueError):
+        except (OSError, serial.serialutil.SerialException, ValueError):
             logging.exception("Unable to open serial port")
             raise ReceiverConnectionError(
                 f"Unable to open serial port {args.serial_port}"
@@ -180,7 +187,7 @@ def open_receiver_connection(args):
             if device_type:
                 return _build_receiver_connection(ser, args, device_type)
             ser.close()
-        except serial.serialutil.SerialException:
+        except (OSError, serial.serialutil.SerialException):
             continue
 
     return None
@@ -255,6 +262,8 @@ def open_mqtt_connection(args):
     client.reconnect_delay_set(min_delay=1, max_delay=30)
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
+    client.connected_flag = False
+    client.connect_error = None
 
     mqtt_host = args.mqtt_host or "localhost"
     mqtt_port = int(args.mqtt_port or 1883)
@@ -263,14 +272,28 @@ def open_mqtt_connection(args):
     print(f"Connecting to MQTT host: {mqtt_host}:{mqtt_port}")
     try:
         client.connect(mqtt_host, mqtt_port)
-        while not client.connected_flag:
+        deadline = time.monotonic() + 30
+        while not client.connected_flag and client.connect_error is None:
             logging.debug("Waiting for MQTT connection")
+            if time.monotonic() >= deadline:
+                raise MqttConnectionError(
+                    f"Timed out waiting for MQTT host {mqtt_host}:{mqtt_port}"
+                )
             time.sleep(1)
-    except (mqtt.socket.timeout, mqtt.socket.error) as error:
+        if client.connect_error is not None:
+            raise MqttConnectionError(
+                "MQTT broker rejected connection to "
+                f"{mqtt_host}:{mqtt_port} with reason code {client.connect_error}"
+            )
+    except (mqtt.socket.timeout, mqtt.socket.error, OSError) as error:
+        client.loop_stop()
         logging.exception("Unable to connect to MQTT host: %s", error)
         raise MqttConnectionError(
             f"Unable to connect to MQTT host {mqtt_host}:{mqtt_port}"
         ) from error
+    except MqttConnectionError:
+        client.loop_stop()
+        raise
     return client
 
 
@@ -283,8 +306,15 @@ def publish_measurement(
     """
     Publish discovery first when enabled, then publish the measurement.
     """
-    measurement = json.loads(measurement_json)
-    sensor_id = measurement["id"]
+    try:
+        measurement = json.loads(measurement_json)
+        sensor_id = measurement["id"]
+    except (TypeError, json.JSONDecodeError, KeyError):
+        logging.exception(
+            "Invalid measurement payload, skipping publish: %s",
+            measurement_json,
+        )
+        return mqtt.MQTT_ERR_INVAL, None
 
     if not getattr(mqtt_client, "connected_flag", True):
         logging.warning(
@@ -301,12 +331,20 @@ def publish_measurement(
             measurement,
         )
 
-    result, mid = mqtt_client.publish(
-        homeassistant.state_topic(receiver_serial_number, sensor_id),
-        payload=measurement_json,
-        qos=1,
-        retain=False,
-    )
+    try:
+        result, mid = mqtt_client.publish(
+            homeassistant.state_topic(receiver_serial_number, sensor_id),
+            payload=measurement_json,
+            qos=1,
+            retain=False,
+        )
+    except (OSError, RuntimeError, TypeError, ValueError):
+        logging.exception(
+            "Publishing measurement failed for receiver %s sensor %s",
+            receiver_serial_number,
+            sensor_id,
+        )
+        return mqtt.MQTT_ERR_NO_CONN, None
     logging.debug("publish result: %s, mid: %s", result, mid)
     if result != 0:
         logging.warning(
@@ -346,8 +384,11 @@ class MtrBridge:
         Stop MQTT and close the current serial handle if present.
         """
         if self.mqtt_client is not None:
-            self.mqtt_client.loop_stop()
-            self.mqtt_client.disconnect()
+            try:
+                self.mqtt_client.loop_stop()
+                self.mqtt_client.disconnect()
+            except (OSError, RuntimeError, TypeError, ValueError):
+                logging.debug("MQTT client shutdown raised an exception")
         if self.receiver is not None:
             try:
                 self.receiver.serial_handle.close()
@@ -408,12 +449,14 @@ class MtrBridge:
             return PollResult(BridgeState.IDLE)
 
         self.state = BridgeState.READY
+        measurement_json = mtr.mtr_response_to_json(
+            parsed_response,
+            self.transmitters_metadata,
+        )
+
         return PollResult(
             BridgeState.READY,
-            measurement_json=mtr.mtr_response_to_json(
-                parsed_response,
-                self.transmitters_metadata,
-            ),
+            measurement_json=measurement_json,
         )
 
     def publish_measurement(self, measurement_json):

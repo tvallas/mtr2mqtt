@@ -40,19 +40,24 @@ def check_payload(payload):
     if payload is None:
         logging.warning("No MTR respose to parse")
         return False
-    if len(payload) > 4:
-        payload_fields = str(payload).split(" ")
-        data_bytes = int(payload_fields[1]) >> 5
-        # Actual payload bytes = received - type - length&voltage - rsl - id
-        received_data_bytes = len(payload_fields)-4
-        if data_bytes == received_data_bytes:
-            return True
-        logging.warning(
-            "Payload size mismatch, expected %s got %s bytes",
-            data_bytes, received_data_bytes
-            )
-    elif len(payload) <= 4:
+    payload_fields = str(payload).split()
+    if len(payload_fields) <= 4:
         logging.warning("Too short payload to process: %s", payload)
+        return False
+    try:
+        data_bytes = int(payload_fields[1]) >> 5
+    except (IndexError, ValueError):
+        logging.warning("Malformed payload length field in payload: %s", payload)
+        return False
+    # Actual payload bytes = received - type - length&voltage - rsl - id
+    received_data_bytes = len(payload_fields) - 4
+    if data_bytes == received_data_bytes:
+        return True
+    logging.warning(
+        "Payload size mismatch, expected %s got %s bytes",
+        data_bytes,
+        received_data_bytes,
+    )
     return False
 
 
@@ -61,13 +66,17 @@ def _get_header_fields(payload):
     Get transmitter type, rsl, id and voltage fields
     """
     if check_payload(payload):
-        payload_fields = str(payload).split(" ")
-        transmitter_type = TransmitterType(int(payload_fields[0])).name
-        battery_voltage = (
-            int(payload_fields[1]) & 31
-        ) / 10  # clear 3 highest bits used for data length (31 = 00011111)
-        transmitter_id = str(payload_fields[3])
-        rsl = (int(payload_fields[2]) & 127) - 127
+        payload_fields = str(payload).split()
+        try:
+            transmitter_type = TransmitterType(int(payload_fields[0])).name
+            battery_voltage = (
+                int(payload_fields[1]) & 31
+            ) / 10  # clear 3 highest bits used for data length (31 = 00011111)
+            transmitter_id = str(payload_fields[3])
+            rsl = (int(payload_fields[2]) & 127) - 127
+        except (IndexError, ValueError):
+            logging.warning("Malformed payload header, skipping payload: %s", payload)
+            return None
         Headers = namedtuple('Headers', 'transmitter_type rsl transmitter_id battery_voltage')
         return Headers(transmitter_type, rsl, transmitter_id, battery_voltage)
     return None
@@ -77,11 +86,15 @@ def _get_ft10_reading(payload):
     Get FT10/MTR260/CSR260 reading from payload
     """
     if check_payload(payload):
-        payload_fields = str(payload).split(" ")
-        reading = round(
-            (int(payload_fields[4]) + int(payload_fields[5]) * 256) / 10.0 - 273.2,
-            1,
-        )
+        payload_fields = str(payload).split()
+        try:
+            reading = round(
+                (int(payload_fields[4]) + int(payload_fields[5]) * 256) / 10.0 - 273.2,
+                1,
+            )
+        except (IndexError, ValueError):
+            logging.warning("Malformed FT10 payload, skipping payload: %s", payload)
+            return None
         return reading
     return None
 
@@ -102,7 +115,7 @@ def _get_utility_data(headers, payload):
     """
     Get Utility packet as json
     """
-    payload_fields = str(payload).split(" ")
+    payload_fields = str(payload).split()
     # Some transmitters may intermittently send some additional
     # information using transmitter type 15.
     # After that, comes a byte indicating the type of utility data,
@@ -115,7 +128,11 @@ def _get_utility_data(headers, payload):
         # Value 0 corresponds to 1.1.2000, and every day increments by one.
         start_date = datetime.strptime("1.1.2000", "%d.%m.%Y")
         logging.debug("Utility packet, payload length: %s", len(payload_fields))
-        calibration_days = int(payload_fields[5]) + 256 * int(payload_fields[6])
+        try:
+            calibration_days = int(payload_fields[5]) + 256 * int(payload_fields[6])
+        except (IndexError, ValueError):
+            logging.warning("Malformed utility payload, skipping payload: %s", payload)
+            return None
         if (
             calibration_days == 65535
         ):
@@ -191,10 +208,10 @@ def mtr_response_to_json(payload, transmitters_metadata):
     """
 
     headers = _get_header_fields(payload)
-
     if headers:
-
         data = payload_proressor[headers.transmitter_type](headers, payload)
+        if data is None:
+            return None
 
         if transmitters_metadata:
             transmitter_information = metadata.get_data(
@@ -205,6 +222,5 @@ def mtr_response_to_json(payload, transmitters_metadata):
                 data_with_transmitter_info = {**data, **transmitter_information}
                 return json.dumps(data_with_transmitter_info)
         return json.dumps(data)
-
 
     return None
