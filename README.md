@@ -6,6 +6,8 @@ A CLI tool for reading Nokeval MTR wireless receivers and forwarding readings as
 
 mtr2mqtt connects to Nokeval MTR series wireless receivers (such as RTR970, FTR980, etc.) via serial connection, reads the measurements from wireless transmitters, and publishes the data to MQTT topics in a structured JSON format.
 
+It can also publish Home Assistant MQTT Discovery messages so that each detected transmitter appears automatically as a Home Assistant device with `reading`, `battery`, and `rsl` sensor entities.
+
 ## Installation
 
 ### Using pip
@@ -30,6 +32,18 @@ Or define the serial port and mqtt host as parameters:
 
 ```sh
 mtr2mqtt --serial-port /dev/ttyUSB12345 --mqtt-host 192.168.1.2
+```
+
+Enable Home Assistant discovery:
+
+```sh
+mtr2mqtt -f metadata.yml --ha-discovery
+```
+
+Use a custom discovery prefix or node id:
+
+```sh
+mtr2mqtt --ha-discovery --ha-discovery-prefix ha --ha-discovery-node-id mtr-bridge-1
 ```
 
 ### Using Docker
@@ -105,12 +119,17 @@ The `metadata.yml` file is used to provide additional configuration for the `mtr
 The `metadata.yml` file should be structured as follows:
 
 ```yaml
-sensors:
 - id: 12345
   location: "Living room"
   description: "Ambient air temperature"
   unit: "°C"
   quantity: "Temperature"
+  ha:
+    name: "Ambient"
+    device_class: "temperature"
+    state_class: "measurement"
+    suggested_display_precision: 1
+    icon: "mdi:thermometer"
 - id: 54321
   location: "Living room"
   unit: "%"
@@ -121,10 +140,12 @@ sensors:
 Each sensor entry should include:
 
 - `id`: A unique identifier for the sensor.
-- `name`: A descriptive name for the sensor.
+- `description`: A descriptive label for the sensor.
 - `unit`: The unit of measurement for the sensor's readings.
 
 **Note:** Other metadata fields can be freely added and those are added to the JSON object.
+
+The optional `ha:` block is used only for Home Assistant discovery customization. It can override the main reading entity metadata with fields such as `name`, `device_class`, `state_class`, `suggested_display_precision`, and `icon`. Existing metadata files continue to work unchanged.
 
 ### Using the metadata file
 
@@ -147,6 +168,60 @@ measurements/<receiver_serial_number>/<sensor_id>
 ```
 
 Where `<receiver_serial_number>` is the serial number of the receiver and `<sensor_id>` is the unique identifier for the sensor.
+
+This measurement topic structure remains unchanged even when Home Assistant discovery is enabled.
+
+### Home Assistant MQTT Discovery
+
+When `--ha-discovery` is enabled, mtr2mqtt publishes retained Home Assistant device discovery messages the first time it sees a real measurement for a transmitter. One Home Assistant device is created per physical transmitter, using the transmitter id as the Home Assistant device identifier and entity unique id base. The MQTT state topic itself remains unchanged and still includes the receiver serial number.
+
+Discovery creates these entities for each transmitter:
+
+- `reading`: the primary sensor entity
+- `battery`: a diagnostic battery voltage sensor
+- `rsl`: a diagnostic signal sensor
+
+Discovery topics use Home Assistant device discovery:
+
+```text
+<discovery_prefix>/device/<object_id>/config
+<discovery_prefix>/device/<node_id>/<object_id>/config
+```
+
+For example:
+
+```text
+homeassistant/device/15006/config
+measurements/RTR970123/15006
+```
+
+The discovery payload points each entity to the existing measurement topic, so measurement payloads continue to be published as non-retained JSON messages.
+
+The primary reading entity also exposes the measurement JSON as Home Assistant attributes using `json_attributes_topic`, which means metadata fields such as `location`, `description`, `quantity`, and `zone` are visible in Home Assistant automatically.
+
+#### Home Assistant discovery configuration
+
+CLI flags:
+
+- `--ha-discovery`: enable Home Assistant discovery
+- `--ha-discovery-prefix`: set the discovery prefix, default `homeassistant`
+- `--ha-discovery-retain` and `--no-ha-discovery-retain`: control retained discovery messages, default retained
+- `--ha-discovery-node-id`: add an optional node id segment to the discovery topic
+
+Environment variables:
+
+- `MTR2MQTT_HA_DISCOVERY`
+- `MTR2MQTT_HA_DISCOVERY_PREFIX`
+- `MTR2MQTT_HA_DISCOVERY_RETAIN`
+- `MTR2MQTT_HA_DISCOVERY_NODE_ID`
+
+The reading entity infers conservative Home Assistant metadata from the existing metadata file when possible. For example, `quantity: Temperature` or `unit: °C` maps to `device_class: temperature`, humidity-like metadata maps to `device_class: humidity`, and pressure-like metadata maps to `device_class: pressure`.
+
+To align better with typical Home Assistant sensor setups, the primary reading entity also publishes:
+
+- `expire_after: 900`
+- `suggested_area` from metadata `location`
+- a default icon inferred from the measurement type, unless overridden in metadata `ha:`
 
 ### Message Format
 
