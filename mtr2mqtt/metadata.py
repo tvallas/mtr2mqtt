@@ -32,10 +32,22 @@ def get_data(transmitter_id, all_transmitters):
     all_transmitters = json.loads(all_transmitters)
     logging.debug("All transmitters metadata: %s", all_transmitters)
     logging.debug("Transmitter id: %s", transmitter_id)
+    if not isinstance(all_transmitters, list):
+        logging.warning(
+            "Metadata must be a list of transmitters, got %s",
+            type(all_transmitters).__name__,
+        )
+        return None
     info = None
     for transmitter in all_transmitters:
+        if not isinstance(transmitter, dict):
+            logging.debug(
+                "Skipping metadata entry with unexpected type: %s",
+                type(transmitter).__name__,
+            )
+            continue
         logging.debug("Iterated transmitter: %s", transmitter)
-        if transmitter['id'] == int(transmitter_id):
+        if transmitter.get('id') == int(transmitter_id):
             info = transmitter.copy()
             info.pop('id', None)
             break

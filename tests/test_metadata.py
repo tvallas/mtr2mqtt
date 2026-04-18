@@ -59,6 +59,37 @@ def test_metadata_get_data_with_empty_metadata_list():
     assert metadata.get_data(2345, json.dumps([])) is None
 
 
+def test_metadata_get_data_with_null_metadata():
+    """
+    metadata.get_data returns None when metadata input is JSON null.
+    """
+    assert metadata.get_data(2345, "null") is None
+
+
+def test_metadata_get_data_with_mapping_metadata():
+    """
+    metadata.get_data returns None when metadata input is a JSON object.
+    """
+    assert metadata.get_data(2345, json.dumps({
+        "id": 2345,
+        "location": "Room 2",
+    })) is None
+
+
+def test_metadata_get_data_skips_non_mapping_entries():
+    """
+    metadata.get_data ignores malformed list entries and still finds valid ones.
+    """
+    assert metadata.get_data(2345, json.dumps([
+        "invalid",
+        {
+            "id": 2345,
+            "location": "Room 2",
+            "unit": "%",
+        },
+    ])) == METADATA_TEST_TRANSMITTER_OUTPUT
+
+
 def test_metadata_loadfile_with_empty_file(tmp_path):
     """
     metadata.loadfile returns JSON null for an empty YAML file.
