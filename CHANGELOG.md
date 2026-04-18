@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.8.1 (2026-04-18)
+
+### Bug Fixes
+
+- **docker**: Reduce runtime image size
+  ([`9636c76`](https://github.com/tvallas/mtr2mqtt/commit/9636c76e4029c3478e1e6747ae5781b81252ba08))
+
+
 ## v0.8.0 (2026-04-18)
 
 ### Features
