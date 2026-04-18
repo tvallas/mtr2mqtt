@@ -4,6 +4,7 @@ Tests for runtime module.
 
 from types import SimpleNamespace
 
+import pytest
 from context import mtr2mqtt
 from mtr2mqtt import runtime
 
@@ -74,6 +75,9 @@ def test_open_mqtt_connection_raises_mqtt_error_on_connect_failure(monkeypatch):
         def loop_start(self):
             return None
 
+        def loop_stop(self):
+            return None
+
         def connect(self, host, port):
             raise runtime.mqtt.socket.error("boom")
 
@@ -88,6 +92,80 @@ def test_open_mqtt_connection_raises_mqtt_error_on_connect_failure(monkeypatch):
         assert "Unable to connect to MQTT host mqtt.example:1884" == str(error)
     else:
         raise AssertionError("MqttConnectionError was not raised")
+
+
+def test_open_mqtt_connection_raises_on_broker_rejection(monkeypatch):
+    """
+    MQTT broker rejections fail startup instead of hanging indefinitely.
+    """
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.connected_flag = False
+            self.connect_error = None
+
+        def enable_logger(self):
+            return None
+
+        def reconnect_delay_set(self, min_delay, max_delay):
+            return None
+
+        def loop_start(self):
+            return None
+
+        def loop_stop(self):
+            return None
+
+        def connect(self, host, port):
+            runtime.on_connect(self, None, None, 5, None)
+
+    monkeypatch.setattr(runtime.mqtt, "Client", FakeClient)
+    monkeypatch.setattr(runtime.time, "sleep", lambda _: None)
+
+    args = SimpleNamespace(mqtt_host="mqtt.example", mqtt_port=1884)
+
+    with pytest.raises(runtime.MqttConnectionError) as error:
+        runtime.open_mqtt_connection(args)
+
+    assert "reason code 5" in str(error.value)
+
+
+def test_open_mqtt_connection_raises_on_timeout(monkeypatch):
+    """
+    MQTT startup times out when the callback never reports success or failure.
+    """
+    monotonic_values = iter([0, 10, 20, 31])
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.connected_flag = False
+            self.connect_error = None
+
+        def enable_logger(self):
+            return None
+
+        def reconnect_delay_set(self, min_delay, max_delay):
+            return None
+
+        def loop_start(self):
+            return None
+
+        def loop_stop(self):
+            return None
+
+        def connect(self, host, port):
+            return None
+
+    monkeypatch.setattr(runtime.mqtt, "Client", FakeClient)
+    monkeypatch.setattr(runtime.time, "sleep", lambda _: None)
+    monkeypatch.setattr(runtime.time, "monotonic", lambda: next(monotonic_values))
+
+    args = SimpleNamespace(mqtt_host="mqtt.example", mqtt_port=1884)
+
+    with pytest.raises(runtime.MqttConnectionError) as error:
+        runtime.open_mqtt_connection(args)
+
+    assert "Timed out waiting" in str(error.value)
 
 
 def test_open_receiver_connection_rejects_incompatible_explicit_port(monkeypatch):
@@ -252,6 +330,39 @@ def test_publish_measurement_publishes_discovery_first():
     assert client.calls[1][0] == "measurements/RTR970123/15006"
     assert client.calls[1][1]["payload"] == measurement_json
     assert client.calls[1][1]["retain"] is False
+
+
+def test_publish_measurement_rejects_invalid_json_payload():
+    """
+    Invalid measurement payloads are skipped instead of raising.
+    """
+    client = SimpleNamespace(connected_flag=True)
+
+    result, mid = runtime.publish_measurement(client, "RTR970123", "{")
+
+    assert result == runtime.mqtt.MQTT_ERR_INVAL
+    assert mid is None
+
+
+def test_publish_measurement_handles_publish_exceptions():
+    """
+    MQTT publish exceptions are converted to a failed publish result.
+    """
+
+    class FakeClient:
+        connected_flag = True
+
+        def publish(self, *args, **kwargs):
+            raise RuntimeError("boom")
+
+    result, mid = runtime.publish_measurement(
+        FakeClient(),
+        "RTR970123",
+        '{"id": "15006", "reading": 22.9}',
+    )
+
+    assert result == runtime.mqtt.MQTT_ERR_NO_CONN
+    assert mid is None
 
 
 def test_publish_measurement_without_discovery_keeps_normal_publish_behavior():

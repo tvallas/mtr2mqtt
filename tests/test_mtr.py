@@ -44,6 +44,8 @@ MTR_NONE_MESSAGE = None
 MTR_TOO_SHORT_INPUT = "0 90 58 15006"
 MTR_SIZE_MISMATCH_INPUT = "0 122 58 15006 145 11"
 MTR_CSR260_READING_INPUT = "11 90 58 15006 145 11"
+MTR_MALFORMED_LENGTH_INPUT = "0 xx 58 15006 145 11"
+MTR_UNKNOWN_TYPE_INPUT = "99 90 58 15006 145 11"
 
 
 @freeze_time("2020-09-23 19:34:13.497019+00:00")
@@ -96,6 +98,13 @@ def test_check_payload_with_size_mismatch():
     mtr.check_payload returns False when the payload length field does not match.
     """
     assert not mtr.check_payload(MTR_SIZE_MISMATCH_INPUT)
+
+
+def test_check_payload_with_non_numeric_length_field():
+    """
+    Non-numeric payload length fields are rejected.
+    """
+    assert not mtr.check_payload(MTR_MALFORMED_LENGTH_INPUT)
 
 
 def test_get_headers_with_valid_message():
@@ -209,3 +218,17 @@ def test_mtr_response_to_json_returns_none_for_invalid_message():
     Invalid payloads are ignored.
     """
     assert mtr.mtr_response_to_json(MTR_TOO_SHORT_INPUT, None) is None
+
+
+def test_mtr_response_to_json_returns_none_for_malformed_message():
+    """
+    Malformed payload fields are ignored instead of raising.
+    """
+    assert mtr.mtr_response_to_json(MTR_MALFORMED_LENGTH_INPUT, None) is None
+
+
+def test_mtr_response_to_json_returns_none_for_unknown_transmitter_type():
+    """
+    Unknown transmitter types are ignored instead of crashing parsing.
+    """
+    assert mtr.mtr_response_to_json(MTR_UNKNOWN_TYPE_INPUT, None) is None
