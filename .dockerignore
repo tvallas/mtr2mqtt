@@ -1,0 +1,16 @@
+.git
+.github
+.pytest_cache
+.venv
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+docs/
+tests/
+metadata.yml
+sample_metadata.yml
+docker-compose.yml
+CHANGELOG.md
+AGENTS.md
