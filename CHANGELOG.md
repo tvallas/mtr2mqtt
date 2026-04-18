@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.8.0 (2026-04-18)
+
+### Features
+
+- **output**: Add live sensor table view
+  ([`406367c`](https://github.com/tvallas/mtr2mqtt/commit/406367c92821bce8892110d0f76e0570737ca777))
+
+- **output**: Add structured JSON logging
+  ([`26320de`](https://github.com/tvallas/mtr2mqtt/commit/26320decf7cdd5e470d94d6811fc7a8f3af24b4e))
+
+
 ## v0.7.4 (2026-04-18)
 
 ### Bug Fixes
