@@ -12,6 +12,7 @@ from serial.serialutil import EIGHTBITS, FIVEBITS, SEVENBITS, SIXBITS
 import serial
 
 from mtr2mqtt import homeassistant
+from mtr2mqtt.logging_utils import configure_root_logger
 from mtr2mqtt import metadata
 from mtr2mqtt.runtime import BridgeError
 from mtr2mqtt.runtime import MtrBridge
@@ -139,6 +140,13 @@ def create_parser():
         type=str,
     )
     parser.add_argument(
+        "--output",
+        help="Console output mode (ENV: MTR2MQTT_OUTPUT)",
+        default=os.environ.get("MTR2MQTT_OUTPUT", "json"),
+        required=False,
+        choices=["json", "table"],
+    )
+    parser.add_argument(
         "--ha-discovery",
         help="Enable Home Assistant MQTT discovery (ENV: MTR2MQTT_HA_DISCOVERY)",
         default=_env_flag("MTR2MQTT_HA_DISCOVERY", False),
@@ -202,14 +210,13 @@ def configure_logging(args):
     """
     Configure logging based on the provided arguments.
     """
-    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     if args.debug:
-        logging.basicConfig(level=logging.DEBUG, format=log_format)
-        print("Debug logging enabled")
-    elif args.quiet:
-        logging.basicConfig(level=logging.WARNING)
+        configure_root_logger(debug=True)
+        logging.debug("Debug logging enabled")
+    elif args.quiet or args.output == "table":
+        configure_root_logger(quiet=True)
     else:
-        logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+        configure_root_logger()
         sys.tracebacklimit = 0
 
 
@@ -249,13 +256,13 @@ def main():
         print(version("mtr2mqtt"))
         sys.exit(0)
 
-    configure_logging(args)
-    bridge = MtrBridge(
-        args,
-        transmitters_metadata=load_metadata(args),
-        discovery_publisher=create_discovery_publisher(args),
-    )
     try:
+        configure_logging(args)
+        bridge = MtrBridge(
+            args,
+            transmitters_metadata=load_metadata(args),
+            discovery_publisher=create_discovery_publisher(args),
+        )
         bridge.run_forever()
     except (BridgeError, metadata.MetadataError, CliConfigurationError) as error:
         logging.fatal(str(error))

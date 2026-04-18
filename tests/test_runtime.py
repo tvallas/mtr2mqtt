@@ -168,6 +168,29 @@ def test_open_mqtt_connection_raises_on_timeout(monkeypatch):
     assert "Timed out waiting" in str(error.value)
 
 
+def test_on_connect_logs_reason_code_objects_without_crashing(caplog):
+    """
+    Successful MQTT connects must tolerate ReasonCode-like callback objects.
+    """
+
+    class FakeReasonCode:
+        def __eq__(self, other):
+            return other == 0
+
+        def __str__(self):
+            return "Success"
+
+    client = SimpleNamespace(connected_flag=False, connect_error="previous")
+
+    with caplog.at_level("INFO"):
+        runtime.on_connect(client, None, None, FakeReasonCode(), None)
+
+    assert client.connected_flag is True
+    assert client.connect_error is None
+    assert caplog.records[0].event == "mqtt_connected"
+    assert caplog.records[0].mqtt_reason_code == "Success"
+
+
 def test_open_receiver_connection_rejects_incompatible_explicit_port(monkeypatch):
     """
     Explicit ports must still validate as compatible receivers.
@@ -226,6 +249,18 @@ def test_open_receiver_connection_raises_receiver_error_for_open_failure(monkeyp
         assert "Unable to open serial port /dev/cu.usbserial-test" == str(error)
     else:
         raise AssertionError("ReceiverConnectionError was not raised")
+
+
+def test_bridge_table_output_requires_tty(monkeypatch):
+    """
+    Table mode is rejected when stdout is not an interactive terminal.
+    """
+    monkeypatch.setattr(runtime.sys.stdout, "isatty", lambda: False)
+
+    with pytest.raises(runtime.OutputModeError) as error:
+        runtime.MtrBridge(SimpleNamespace(scl_address=126, output="table"))
+
+    assert "interactive terminal" in str(error.value)
 
 
 def test_recover_receiver_connection_rediscovery_finds_replugged_receiver(monkeypatch):
@@ -398,6 +433,44 @@ def test_publish_measurement_without_discovery_keeps_normal_publish_behavior():
             {"payload": measurement_json, "qos": 1, "retain": False},
         )
     ]
+
+
+def test_log_measurement_adds_structured_measurement_payload(caplog):
+    """
+    Measurement logs carry the parsed payload as structured data.
+    """
+    with caplog.at_level("INFO"):
+        runtime.log_measurement('{"id":"15006","reading":22.9,"location":"Kids room"}')
+
+    assert caplog.records[0].event == "measurement_received"
+    assert caplog.records[0].measurement["id"] == "15006"
+    assert caplog.records[0].measurement["location"] == "Kids room"
+
+
+def test_build_receiver_connection_logs_structured_receiver_details(monkeypatch, caplog):
+    """
+    Receiver connection logs expose the device and serial identity as fields.
+    """
+
+    class FakeSerial:
+        name = "/dev/cu.usbserial-test"
+
+        def get_settings(self):
+            return {"baudrate": 9600}
+
+    monkeypatch.setattr(runtime, "_read_receiver_serial_number", lambda *_args: "A118636")
+
+    with caplog.at_level("INFO"):
+        receiver = runtime._build_receiver_connection(
+            FakeSerial(),
+            SimpleNamespace(scl_address=126),
+            "RTR970 V3.0",
+        )
+
+    assert receiver.receiver_serial_number == "A118636"
+    assert caplog.records[0].event == "receiver_connected"
+    assert caplog.records[0].device_type == "RTR970 V3.0"
+    assert caplog.records[0].serial_port == "/dev/cu.usbserial-test"
 
 
 def test_bridge_recovers_and_uses_refreshed_receiver_serial_number(monkeypatch):

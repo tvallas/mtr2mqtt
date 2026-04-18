@@ -39,6 +39,7 @@ def test_parser_defaults_without_arguments(monkeypatch):
     monkeypatch.delenv("MTR2MQTT_MQTT_HOST", raising=False)
     monkeypatch.delenv("MTR2MQTT_MQTT_PORT", raising=False)
     monkeypatch.delenv("MTR2MQTT_METADATA_FILE", raising=False)
+    monkeypatch.delenv("MTR2MQTT_OUTPUT", raising=False)
     monkeypatch.delenv("MTR2MQTT_HA_DISCOVERY", raising=False)
     monkeypatch.delenv("MTR2MQTT_HA_DISCOVERY_PREFIX", raising=False)
     monkeypatch.delenv("MTR2MQTT_HA_DISCOVERY_RETAIN", raising=False)
@@ -56,6 +57,7 @@ def test_parser_defaults_without_arguments(monkeypatch):
     assert args.mqtt_host is None
     assert args.mqtt_port == 1883
     assert args.metadata_file is None
+    assert args.output == "json"
     assert args.ha_discovery is False
     assert args.ha_discovery_prefix == "homeassistant"
     assert args.ha_discovery_retain is True
@@ -76,6 +78,7 @@ def test_parser_reads_environment_defaults(monkeypatch):
     monkeypatch.setenv("MTR2MQTT_MQTT_HOST", "mqtt.example")
     monkeypatch.setenv("MTR2MQTT_MQTT_PORT", "1884")
     monkeypatch.setenv("MTR2MQTT_METADATA_FILE", "tests/metadata.yml")
+    monkeypatch.setenv("MTR2MQTT_OUTPUT", "table")
     monkeypatch.setenv("MTR2MQTT_HA_DISCOVERY", "true")
     monkeypatch.setenv("MTR2MQTT_HA_DISCOVERY_PREFIX", "ha")
     monkeypatch.setenv("MTR2MQTT_HA_DISCOVERY_RETAIN", "false")
@@ -93,6 +96,7 @@ def test_parser_reads_environment_defaults(monkeypatch):
     assert args.mqtt_host == "mqtt.example"
     assert args.mqtt_port == 1884
     assert args.metadata_file == "tests/metadata.yml"
+    assert args.output == "table"
     assert args.ha_discovery is True
     assert args.ha_discovery_prefix == "ha"
     assert args.ha_discovery_retain is False
@@ -186,6 +190,8 @@ def test_parser_parses_common_options():
             "0",
             "--metadata-file",
             "tests/metadata.yml",
+            "--output",
+            "table",
         ]
     )
 
@@ -195,6 +201,7 @@ def test_parser_parses_common_options():
     assert args.serial_timeout == 2
     assert args.scl_address == 0
     assert args.metadata_file == "tests/metadata.yml"
+    assert args.output == "table"
 
 
 def test_parser_rejects_invalid_scl_address():

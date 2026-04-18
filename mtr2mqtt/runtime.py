@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 import json
 import logging
+import sys
 import time
 
 import paho.mqtt.client as mqtt
@@ -17,9 +18,11 @@ from serial.tools import list_ports
 from mtr2mqtt import homeassistant
 from mtr2mqtt import mtr
 from mtr2mqtt import scl
+from mtr2mqtt.table_view import MeasurementTableView
 
 
 SERIAL_PORT_GREP = "RTR|FTR|DCS|DPR"
+LOGGER = logging.getLogger(__name__)
 
 
 class BridgeError(Exception):
@@ -37,6 +40,12 @@ class ReceiverConnectionError(BridgeError):
 class MqttConnectionError(BridgeError):
     """
     Raised when the runtime cannot connect to the MQTT broker.
+    """
+
+
+class OutputModeError(BridgeError):
+    """
+    Raised when the selected output mode cannot run in the current terminal.
     """
 
 
@@ -88,7 +97,13 @@ def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code == 0:
         client.connected_flag = True
         client.connect_error = None
-        logging.info("MQTT server connected OK")
+        LOGGER.info(
+            "MQTT broker connected",
+            extra={
+                "event": "mqtt_connected",
+                "mqtt_reason_code": str(reason_code),
+            },
+        )
     else:
         client.connected_flag = False
         client.connect_error = reason_code
@@ -148,8 +163,15 @@ def _build_receiver_connection(ser, args, device_type):
         ser.close()
         return None
 
-    print(f"Connected device type: {device_type}")
-    print(f"Receiver S/N: {receiver_serial_number}")
+    LOGGER.info(
+        "Receiver connected",
+        extra={
+            "event": "receiver_connected",
+            "device_type": device_type,
+            "receiver_serial_number": receiver_serial_number,
+            "serial_port": ser.name,
+        },
+    )
     return ReceiverConnection(
         serial_handle=ser,
         device_type=device_type,
@@ -269,7 +291,14 @@ def open_mqtt_connection(args):
     mqtt_port = int(args.mqtt_port or 1883)
 
     client.loop_start()
-    print(f"Connecting to MQTT host: {mqtt_host}:{mqtt_port}")
+    LOGGER.info(
+        "Connecting to MQTT broker",
+        extra={
+            "event": "mqtt_connecting",
+            "mqtt_host": mqtt_host,
+            "mqtt_port": mqtt_port,
+        },
+    )
     try:
         client.connect(mqtt_host, mqtt_port)
         deadline = time.monotonic() + 30
@@ -295,6 +324,31 @@ def open_mqtt_connection(args):
         client.loop_stop()
         raise
     return client
+
+
+def log_measurement(measurement_json):
+    """
+    Log a measurement payload as a structured JSON record.
+    """
+    try:
+        measurement = json.loads(measurement_json)
+    except (TypeError, json.JSONDecodeError):
+        LOGGER.info(
+            "Measurement received",
+            extra={
+                "event": "measurement_received",
+                "measurement_raw": measurement_json,
+            },
+        )
+        return
+
+    LOGGER.info(
+        "Measurement received",
+        extra={
+            "event": "measurement_received",
+            "measurement": measurement,
+        },
+    )
 
 
 def publish_measurement(
@@ -367,7 +421,19 @@ class MtrBridge:
         self.receiver = None
         self.mqtt_client = None
         self.state = BridgeState.STARTING
-        self.scl_dbg_1_command = scl.create_command("DBG 1 ?", args.scl_address)
+        self.output_view = self._create_output_view()
+
+    def _create_output_view(self):
+        if getattr(self.args, "output", "json") != "table":
+            return None
+        if not sys.stdout.isatty():
+            raise OutputModeError(
+                "Table output requires an interactive terminal"
+            )
+        return MeasurementTableView()
+
+    def _poll_command(self):
+        return scl.create_command("DBG 1 ?", self.args.scl_address)
 
     def start(self):
         """
@@ -415,10 +481,11 @@ class MtrBridge:
 
         parsed_response = None
         try:
-            receiver.serial_handle.write(self.scl_dbg_1_command)
+            poll_command = self._poll_command()
+            receiver.serial_handle.write(poll_command)
             logging.debug(
                 "Wrote message: %s to: to %s",
-                self.scl_dbg_1_command,
+                poll_command,
                 receiver.serial_handle.name,
             )
             response = receiver.serial_handle.read_until(scl.END_CHAR)
@@ -482,7 +549,13 @@ class MtrBridge:
             while True:
                 poll_result = self.poll_once()
                 if poll_result.measurement_json:
-                    logging.info(poll_result.measurement_json)
+                    if self.output_view is not None:
+                        self.output_view.update(
+                            self.receiver.receiver_serial_number,
+                            poll_result.measurement_json,
+                        )
+                    else:
+                        log_measurement(poll_result.measurement_json)
                     self.publish_measurement(poll_result.measurement_json)
                     continue
                 if poll_result.state in {
