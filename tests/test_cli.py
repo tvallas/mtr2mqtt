@@ -1,6 +1,8 @@
 """
 Tests for cli module
 """
+from types import SimpleNamespace
+
 import pytest
 from context import mtr2mqtt
 from mtr2mqtt import cli
@@ -146,3 +148,47 @@ def test_parser_rejects_invalid_scl_address():
 
     with pytest.raises(SystemExit):
         parser.parse_args(["--scl-address", "124"])
+
+
+def test_open_mqtt_connection_uses_callback_api_v2(monkeypatch):
+    """
+    MQTT client initialization opts in to the non-deprecated callback API.
+    """
+    captured = {}
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            captured["kwargs"] = kwargs
+            self.connected_flag = False
+
+        def enable_logger(self):
+            captured["enable_logger"] = True
+
+        def loop_start(self):
+            captured["loop_start"] = True
+
+        def connect(self, host, port):
+            captured["connect"] = (host, port)
+            self.connected_flag = True
+
+    monkeypatch.setattr(cli.mqtt, "Client", FakeClient)
+    monkeypatch.setattr(
+        cli.mqtt,
+        "CallbackAPIVersion",
+        SimpleNamespace(VERSION2="version2"),
+    )
+    monkeypatch.setattr(cli.time, "sleep", lambda _: None)
+
+    args = SimpleNamespace(mqtt_host="mqtt.example", mqtt_port=1884)
+
+    client = cli._open_mqtt_connection(args)
+
+    assert captured["kwargs"]["callback_api_version"] == "version2"
+    assert captured["kwargs"]["client_id"] == "mtr2mqtt"
+    assert captured["kwargs"]["protocol"] == cli.mqtt.MQTTv311
+    assert captured["kwargs"]["transport"] == "tcp"
+    assert captured["connect"] == ("mqtt.example", 1884)
+    assert captured["enable_logger"] is True
+    assert captured["loop_start"] is True
+    assert client.on_connect is cli.on_connect
+    assert client.on_disconnect is cli.on_disconnect

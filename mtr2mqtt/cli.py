@@ -212,25 +212,33 @@ def _get_latest_from_ring_buffer(ser, scl_dbg_1_command, serial_config):
             time.sleep(1)
     return parsed_response
 
-def on_connect(client, userdata, flags, connection_result):
+def on_connect(client, userdata, flags, reason_code, properties):
     """"
     Handles actions on MQTT connect
     """
-    logging.debug("userdata: %s, flags: %s", userdata, flags)
-    if connection_result==0:
+    logging.debug(
+        "userdata: %s, flags: %s, properties: %s",
+        userdata,
+        flags,
+        properties,
+    )
+    if reason_code == 0:
         client.connected_flag = True #set flag
         logging.info("MQTT server connected OK")
     else:
-        logging.warning("Bad connection Returned code=%s",str(connection_result))
+        logging.warning("Bad connection Returned code=%s", str(reason_code))
 
-def on_disconnect(client, userdata, connection_result):
+def on_disconnect(client, userdata, disconnect_flags, reason_code, properties):
     """"
     Handles actions on MQTT disconnect
     """
     logging.warning(
-        "MQTT server disconnected with reason: %s, userdata: %s",
-        str(connection_result), userdata
-        )
+        "MQTT server disconnected with reason: %s, userdata: %s, flags: %s, properties: %s",
+        str(reason_code),
+        userdata,
+        disconnect_flags,
+        properties,
+    )
     client.connected_flag=False
     client.disconnect_flag=True
 
@@ -240,12 +248,12 @@ def _open_mqtt_connection(args):
     """
 
     mqtt.Client.connected_flag = False #create flag in class
-    # Update the client initialization to specify callback API version
     client = mqtt.Client(
-    client_id='mtr2mqtt',
-    userdata=None,
-    protocol=mqtt.MQTTv311,
-    transport="tcp"
+        callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+        client_id='mtr2mqtt',
+        userdata=None,
+        protocol=mqtt.MQTTv311,
+        transport="tcp"
     )
     client.enable_logger()
     client.on_connect = on_connect
