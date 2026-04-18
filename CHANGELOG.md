@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.6.10 (2026-04-18)
+
+### Bug Fixes
+
+- **mqtt**: Use callback API v2
+  ([`9a6c040`](https://github.com/tvallas/mtr2mqtt/commit/9a6c040c74543f2133cc749c362a6782c2af483a))
+
+
 ## v0.6.9 (2026-04-17)
 
 ### Bug Fixes

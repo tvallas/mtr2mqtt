@@ -471,7 +471,7 @@ wheels = [
 
 [[package]]
 name = "mtr2mqtt"
-version = "0.6.9"
+version = "0.6.10"
 source = { editable = "." }
 dependencies = [
     { name = "paho-mqtt" },
