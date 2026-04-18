@@ -289,7 +289,7 @@ class DiscoveryPublisher:
                 result,
             )
             return False
-        except Exception:
+        except (OSError, RuntimeError, TypeError, ValueError, KeyError):
             logging.exception(
                 "Home Assistant discovery publish raised an exception for receiver %s",
                 receiver_serial_number,

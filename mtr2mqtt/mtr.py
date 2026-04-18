@@ -207,25 +207,20 @@ def mtr_response_to_json(payload, transmitters_metadata):
     Optionally adding metadata from a file
     """
 
-    try:
-        headers = _get_header_fields(payload)
-        if headers:
-            data = payload_proressor[headers.transmitter_type](headers, payload)
-            if data is None:
-                return None
+    headers = _get_header_fields(payload)
+    if headers:
+        data = payload_proressor[headers.transmitter_type](headers, payload)
+        if data is None:
+            return None
 
-            if transmitters_metadata:
-                transmitter_information = metadata.get_data(
-                    headers.transmitter_id, transmitters_metadata
-                )
-                logging.debug("Transmitter info: %s", transmitter_information)
-                if transmitter_information:
-                    data_with_transmitter_info = {**data, **transmitter_information}
-                    return json.dumps(data_with_transmitter_info)
-            return json.dumps(data)
-    except Exception:
-        logging.exception("Failed to parse MTR payload: %s", payload)
-        return None
-
+        if transmitters_metadata:
+            transmitter_information = metadata.get_data(
+                headers.transmitter_id, transmitters_metadata
+            )
+            logging.debug("Transmitter info: %s", transmitter_information)
+            if transmitter_information:
+                data_with_transmitter_info = {**data, **transmitter_information}
+                return json.dumps(data_with_transmitter_info)
+        return json.dumps(data)
 
     return None

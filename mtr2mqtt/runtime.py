@@ -325,18 +325,11 @@ def publish_measurement(
         return mqtt.MQTT_ERR_NO_CONN, None
 
     if ha_discovery_publisher:
-        try:
-            ha_discovery_publisher.publish_if_needed(
-                mqtt_client,
-                receiver_serial_number,
-                measurement,
-            )
-        except Exception:
-            logging.exception(
-                "Home Assistant discovery publish failed for receiver %s sensor %s",
-                receiver_serial_number,
-                sensor_id,
-            )
+        ha_discovery_publisher.publish_if_needed(
+            mqtt_client,
+            receiver_serial_number,
+            measurement,
+        )
 
     try:
         result, mid = mqtt_client.publish(
@@ -345,7 +338,7 @@ def publish_measurement(
             qos=1,
             retain=False,
         )
-    except Exception:
+    except (OSError, RuntimeError, TypeError, ValueError):
         logging.exception(
             "Publishing measurement failed for receiver %s sensor %s",
             receiver_serial_number,
@@ -394,7 +387,7 @@ class MtrBridge:
             try:
                 self.mqtt_client.loop_stop()
                 self.mqtt_client.disconnect()
-            except Exception:
+            except (OSError, RuntimeError, TypeError, ValueError):
                 logging.debug("MQTT client shutdown raised an exception")
         if self.receiver is not None:
             try:
@@ -456,15 +449,10 @@ class MtrBridge:
             return PollResult(BridgeState.IDLE)
 
         self.state = BridgeState.READY
-        try:
-            measurement_json = mtr.mtr_response_to_json(
-                parsed_response,
-                self.transmitters_metadata,
-            )
-        except Exception:
-            logging.exception("Failed to transform receiver payload into measurement JSON")
-            self.state = BridgeState.IDLE
-            return PollResult(BridgeState.IDLE)
+        measurement_json = mtr.mtr_response_to_json(
+            parsed_response,
+            self.transmitters_metadata,
+        )
 
         return PollResult(
             BridgeState.READY,
