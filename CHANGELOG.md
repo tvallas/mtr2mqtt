@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.10.0 (2026-04-26)
+
+### Features
+
+- **summary**: Add retained receiver summary topic
+  ([`126d924`](https://github.com/tvallas/mtr2mqtt/commit/126d924edb5787f117a9904d888bccafc5746b5c))
+
+
 ## v0.9.0 (2026-04-26)
 
 ### Bug Fixes
