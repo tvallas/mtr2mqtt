@@ -13,6 +13,8 @@ import sys
 CORE_COLUMNS = [
     "receiver",
     "id",
+    "status",
+    "status_code",
     "location",
     "quantity",
     "reading",
@@ -41,6 +43,8 @@ TIMESTAMP_COLOR = "\033[38;5;250m"
 RESET = "\033[0m"
 PREFERRED_WIDTHS = {
     "id": 8,
+    "status": 7,
+    "status_code": 11,
     "reading": 10,
     "battery": 7,
     "rsl": 6,
@@ -49,6 +53,8 @@ PREFERRED_WIDTHS = {
 MAX_WIDTHS = {
     "receiver": 16,
     "id": 8,
+    "status": 7,
+    "status_code": 11,
     "location": 20,
     "quantity": 16,
     "reading": 10,
@@ -98,7 +104,7 @@ class MeasurementTableView:
             else use_color
         )
 
-    def update(self, receiver_serial_number, measurement_json):
+    def update(self, receiver_serial_number, measurement_json, status_payload=None):
         """
         Merge a measurement into the latest-state table and redraw it.
         """
@@ -108,9 +114,13 @@ class MeasurementTableView:
             for key, value in measurement.items()
             if key not in HIDDEN_COLUMNS
         }
+        receiver_serial_number = str(receiver_serial_number)
         row["receiver"] = receiver_serial_number
         sensor_id = str(row.get("id", "unknown"))
         row_key = (receiver_serial_number, sensor_id)
+        if status_payload:
+            row["status"] = status_payload.get("status")
+            row["status_code"] = status_payload.get("status_code")
         self.rows[row_key] = row
 
         known_columns = set(CORE_COLUMNS + OPTIONAL_COLUMNS + self.dynamic_columns)
@@ -120,6 +130,28 @@ class MeasurementTableView:
                 known_columns.add(key)
 
         self.render()
+
+    def update_statuses(self, status_payloads):
+        """
+        Merge status-only updates into existing sensor rows and redraw if changed.
+        """
+        changed = False
+        for status_payload in status_payloads:
+            if status_payload.get("entity_type") != "sensor":
+                continue
+            row_key = (
+                str(status_payload.get("receiver")),
+                str(status_payload.get("sensor")),
+            )
+            if row_key not in self.rows:
+                continue
+            row = self.rows[row_key]
+            for column in ("status", "status_code"):
+                if row.get(column) != status_payload.get(column):
+                    row[column] = status_payload.get(column)
+                    changed = True
+        if changed:
+            self.render()
 
     def render(self):
         """
@@ -257,7 +289,7 @@ class MeasurementTableView:
             color = ID_COLOR
         elif column in {"reading", "unit"}:
             color = READING_COLOR
-        elif column in {"battery", "rsl", "type"}:
+        elif column in {"battery", "rsl", "type", "status", "status_code"}:
             color = STATUS_COLOR
         elif column == "timestamp":
             color = TIMESTAMP_COLOR

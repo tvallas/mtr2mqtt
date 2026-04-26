@@ -3,6 +3,9 @@ Tests for runtime module.
 """
 
 from types import SimpleNamespace
+from datetime import datetime
+from datetime import timezone
+import json
 
 import pytest
 from context import mtr2mqtt
@@ -433,6 +436,98 @@ def test_publish_measurement_without_discovery_keeps_normal_publish_behavior():
             {"payload": measurement_json, "qos": 1, "retain": False},
         )
     ]
+
+
+def test_publish_status_uses_retained_status_topic_payload():
+    """
+    Status publishing is retained and separate from measurement publishing.
+    """
+
+    class FakeClient:
+        def __init__(self):
+            self.calls = []
+
+        def publish(self, topic, **kwargs):
+            self.calls.append((topic, kwargs))
+            return (0, 1)
+
+    client = FakeClient()
+    payload = {
+        "entity_type": "sensor",
+        "receiver": "RTR970123",
+        "sensor": "15006",
+        "status": "online",
+        "status_code": 1,
+        "last_received_at": "2026-04-26T10:15:32Z",
+        "last_publish_at": "2026-04-26T10:15:33Z",
+        "error_count": 0,
+    }
+
+    result, mid = runtime.publish_status(
+        client,
+        "status/RTR970123/15006",
+        payload,
+    )
+
+    assert result == 0
+    assert mid == 1
+    assert client.calls[0][0] == "status/RTR970123/15006"
+    assert client.calls[0][1]["qos"] == 1
+    assert client.calls[0][1]["retain"] is True
+    assert json.loads(client.calls[0][1]["payload"]) == payload
+
+
+def test_bridge_publishes_measurement_unchanged_and_retained_status(monkeypatch):
+    """
+    Bridge status publishing is additive and does not alter measurement payloads.
+    """
+
+    class FakeClient:
+        def __init__(self):
+            self.calls = []
+
+        def publish(self, topic, **kwargs):
+            self.calls.append((topic, kwargs))
+            return (0, len(self.calls))
+
+    observed_at = datetime(2026, 4, 26, 10, 15, 32, tzinfo=timezone.utc)
+    published_at = datetime(2026, 4, 26, 10, 15, 33, tzinfo=timezone.utc)
+    times = iter([observed_at, published_at, published_at])
+    measurement_json = '{"id":"15006","reading":22.9}'
+    bridge = runtime.MtrBridge(SimpleNamespace(scl_address=126, offline_timeout=1800))
+    bridge.receiver = runtime.ReceiverConnection(
+        serial_handle=SimpleNamespace(),
+        device_type="RTR970",
+        receiver_serial_number="RTR970123",
+        serial_config={},
+    )
+    bridge.mqtt_client = FakeClient()
+
+    monkeypatch.setattr(runtime.status, "utc_now", lambda: next(times))
+
+    measurement = json.loads(measurement_json)
+    receiver = bridge.receiver.receiver_serial_number
+    bridge.status_tracker.record_observation(receiver, measurement["id"], observed_at)
+    result, _mid = bridge.publish_measurement(measurement_json)
+    if result == runtime.mqtt.MQTT_ERR_SUCCESS:
+        bridge.status_tracker.record_publish_success(
+            receiver,
+            measurement["id"],
+            published_at,
+        )
+    bridge.publish_status_changes()
+
+    assert bridge.mqtt_client.calls[0] == (
+        "measurements/RTR970123/15006",
+        {"payload": measurement_json, "qos": 1, "retain": False},
+    )
+    status_topics = [topic for topic, _kwargs in bridge.mqtt_client.calls[1:]]
+    assert status_topics == ["status/RTR970123", "status/RTR970123/15006"]
+    for _topic, kwargs in bridge.mqtt_client.calls[1:]:
+        assert kwargs["retain"] is True
+        payload = json.loads(kwargs["payload"])
+        assert payload["status"] == "online"
+        assert payload["status_code"] == 1
 
 
 def test_log_measurement_adds_structured_measurement_payload(caplog):

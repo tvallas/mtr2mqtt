@@ -18,11 +18,13 @@ from serial.tools import list_ports
 from mtr2mqtt import homeassistant
 from mtr2mqtt import mtr
 from mtr2mqtt import scl
+from mtr2mqtt import status
 from mtr2mqtt.table_view import MeasurementTableView
 
 
 SERIAL_PORT_GREP = "RTR|FTR|DCS|DPR"
 LOGGER = logging.getLogger(__name__)
+STATUS_SWEEP_INTERVAL = 60
 
 
 class BridgeError(Exception):
@@ -409,7 +411,29 @@ def publish_measurement(
     return result, mid
 
 
-class MtrBridge:
+def publish_status(mqtt_client, topic, payload):
+    """
+    Publish a retained status payload.
+    """
+    if not getattr(mqtt_client, "connected_flag", True):
+        logging.warning("Skipping status publish for %s because MQTT is disconnected", topic)
+        return mqtt.MQTT_ERR_NO_CONN, None
+
+    try:
+        result, mid = mqtt_client.publish(
+            topic,
+            payload=json.dumps(payload, sort_keys=True),
+            qos=1,
+            retain=True,
+        )
+    except (OSError, RuntimeError, TypeError, ValueError):
+        logging.exception("Publishing status failed for topic %s", topic)
+        return mqtt.MQTT_ERR_NO_CONN, None
+    logging.debug("status publish result: %s, mid: %s", result, mid)
+    return result, mid
+
+
+class MtrBridge:  # pylint: disable=too-many-instance-attributes
     """
     Long-running runtime for polling an MTR receiver and publishing to MQTT.
     """
@@ -422,6 +446,10 @@ class MtrBridge:
         self.mqtt_client = None
         self.state = BridgeState.STARTING
         self.output_view = self._create_output_view()
+        self.status_tracker = status.StatusTracker(
+            offline_timeout=getattr(self.args, "offline_timeout", 30 * 60),
+        )
+        self._last_status_sweep = 0
 
     def _create_output_view(self):
         if getattr(self.args, "output", "json") != "table":
@@ -540,6 +568,45 @@ class MtrBridge:
             ha_discovery_publisher=self.discovery_publisher,
         )
 
+    def _status_topic(self, payload):
+        if payload["entity_type"] == "receiver":
+            return status.receiver_status_topic(payload["receiver"])
+        return status.sensor_status_topic(payload["receiver"], payload["sensor"])
+
+    def publish_status_changes(self, now=None):
+        """
+        Publish retained status payloads whose content changed.
+        """
+        if self.mqtt_client is None:
+            return []
+
+        published = []
+        for key, payload, rendered in self.status_tracker.changed_payloads(now):
+            result, mid = publish_status(
+                self.mqtt_client,
+                self._status_topic(payload),
+                payload,
+            )
+            if result == mqtt.MQTT_ERR_SUCCESS:
+                self.status_tracker.mark_status_published(key, rendered)
+                published.append((payload, mid))
+        return published
+
+    def sweep_status(self, force=False, now=None):
+        """
+        Detect timeout-driven status changes and update MQTT/table output.
+        """
+        monotonic_now = time.monotonic()
+        if not force and monotonic_now - self._last_status_sweep < STATUS_SWEEP_INTERVAL:
+            return []
+
+        self._last_status_sweep = monotonic_now
+        now = now or status.utc_now()
+        published = self.publish_status_changes(now)
+        if self.output_view is not None:
+            self.output_view.update_statuses(self.status_tracker.sensor_payloads(now))
+        return published
+
     def run_forever(self):
         """
         Start the runtime and keep polling until interrupted.
@@ -547,16 +614,43 @@ class MtrBridge:
         self.start()
         try:
             while True:
+                self.sweep_status()
                 poll_result = self.poll_once()
                 if poll_result.measurement_json:
+                    measurement = json.loads(poll_result.measurement_json)
+                    receiver_serial_number = self.receiver.receiver_serial_number
+                    sensor_id = measurement["id"]
+                    now = status.utc_now()
+                    self.status_tracker.record_observation(
+                        receiver_serial_number,
+                        sensor_id,
+                        observed_at=now,
+                    )
                     if self.output_view is not None:
                         self.output_view.update(
-                            self.receiver.receiver_serial_number,
+                            receiver_serial_number,
                             poll_result.measurement_json,
+                            status_payload=self.status_tracker.sensor_payload(
+                                receiver_serial_number,
+                                sensor_id,
+                                now,
+                            ),
                         )
                     else:
                         log_measurement(poll_result.measurement_json)
-                    self.publish_measurement(poll_result.measurement_json)
+                    result, _mid = self.publish_measurement(poll_result.measurement_json)
+                    if result == mqtt.MQTT_ERR_SUCCESS:
+                        self.status_tracker.record_publish_success(
+                            receiver_serial_number,
+                            sensor_id,
+                            published_at=status.utc_now(),
+                        )
+                    else:
+                        self.status_tracker.record_error(
+                            receiver_serial_number,
+                            sensor_id,
+                        )
+                    self.publish_status_changes()
                     continue
                 if poll_result.state in {
                     BridgeState.IDLE,
