@@ -14,6 +14,7 @@ import serial
 from mtr2mqtt import homeassistant
 from mtr2mqtt.logging_utils import configure_root_logger
 from mtr2mqtt import metadata
+from mtr2mqtt import summary
 from mtr2mqtt.runtime import BridgeError
 from mtr2mqtt.runtime import MtrBridge
 
@@ -112,6 +113,17 @@ def create_parser():
         help="Seconds before observed receivers or sensors are marked offline "
         "(ENV: MTR2MQTT_OFFLINE_TIMEOUT)",
         default=_env_int("MTR2MQTT_OFFLINE_TIMEOUT", 30 * 60),
+        required=False,
+        type=int,
+    )
+    parser.add_argument(
+        "--summary-debounce-seconds",
+        help="Seconds to coalesce receiver summary publishes "
+        "(ENV: MTR2MQTT_SUMMARY_DEBOUNCE_SECONDS)",
+        default=_env_int(
+            "MTR2MQTT_SUMMARY_DEBOUNCE_SECONDS",
+            summary.DEFAULT_DEBOUNCE_SECONDS,
+        ),
         required=False,
         type=int,
     )

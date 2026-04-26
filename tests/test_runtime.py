@@ -477,6 +477,43 @@ def test_publish_status_uses_retained_status_topic_payload():
     assert json.loads(client.calls[0][1]["payload"]) == payload
 
 
+def test_publish_summary_uses_retained_receiver_summary_topic():
+    """
+    Summary publishing is retained and separate from measurements and status.
+    """
+
+    class FakeClient:
+        def __init__(self):
+            self.calls = []
+
+        def publish(self, topic, **kwargs):
+            self.calls.append((topic, kwargs))
+            return (0, 1)
+
+    client = FakeClient()
+    payload = {
+        "receiver": "RTR970123",
+        "updated_at": "2026-04-26T12:00:00Z",
+        "transmitters": {
+            "15006": {
+                "value": 22.9,
+                "measured_at": "2026-04-26T10:15:32Z",
+                "status": "online",
+                "status_code": 1,
+            },
+        },
+    }
+
+    result, mid = runtime.publish_summary(client, "RTR970123", payload)
+
+    assert result == 0
+    assert mid == 1
+    assert client.calls[0][0] == "summary/RTR970123"
+    assert client.calls[0][1]["qos"] == 1
+    assert client.calls[0][1]["retain"] is True
+    assert json.loads(client.calls[0][1]["payload"]) == payload
+
+
 def test_bridge_publishes_measurement_unchanged_and_retained_status(monkeypatch):
     """
     Bridge status publishing is additive and does not alter measurement payloads.
@@ -528,6 +565,159 @@ def test_bridge_publishes_measurement_unchanged_and_retained_status(monkeypatch)
         payload = json.loads(kwargs["payload"])
         assert payload["status"] == "online"
         assert payload["status_code"] == 1
+
+
+def test_bridge_coalesces_summary_publish_without_changing_existing_topics():
+    """
+    Rapid measurement updates become one retained summary after debounce.
+    """
+
+    class FakeClient:
+        def __init__(self):
+            self.calls = []
+
+        def publish(self, topic, **kwargs):
+            self.calls.append((topic, kwargs))
+            return (0, len(self.calls))
+
+    measurement_one = {
+        "id": "15006",
+        "reading": 22.9,
+        "timestamp": "2026-04-26T10:15:32Z",
+        "location": "Technical room",
+        "description": "Floor heating input",
+        "unit": "°C",
+        "quantity": "Temperature",
+        "zone": "Heating",
+    }
+    measurement_two = {
+        "id": "15007",
+        "reading": 48.1,
+        "timestamp": "2026-04-26T10:15:33Z",
+    }
+    bridge = runtime.MtrBridge(
+        SimpleNamespace(
+            scl_address=126,
+            offline_timeout=1800,
+            summary_debounce_seconds=5,
+        )
+    )
+    bridge.receiver = runtime.ReceiverConnection(
+        serial_handle=SimpleNamespace(),
+        device_type="RTR970",
+        receiver_serial_number="RTR970123",
+        serial_config={},
+    )
+    bridge.mqtt_client = FakeClient()
+    receiver = bridge.receiver.receiver_serial_number
+
+    bridge.summary_tracker._monotonic = lambda: 0
+    for measurement in [measurement_one, measurement_two]:
+        bridge.status_tracker.record_observation(
+            receiver,
+            measurement["id"],
+            datetime(2026, 4, 26, 10, 15, 33, tzinfo=timezone.utc),
+        )
+        bridge.summary_tracker.record_measurement(
+            receiver,
+            measurement,
+            bridge.status_tracker.sensor_payload(
+                receiver,
+                measurement["id"],
+                datetime(2026, 4, 26, 10, 15, 33, tzinfo=timezone.utc),
+            ),
+        )
+        bridge.publish_measurement(json.dumps(measurement))
+        bridge.publish_due_summaries(
+            datetime(2026, 4, 26, 10, 15, 34, tzinfo=timezone.utc),
+        )
+
+    assert [topic for topic, _kwargs in bridge.mqtt_client.calls] == [
+        "measurements/RTR970123/15006",
+        "measurements/RTR970123/15007",
+    ]
+
+    bridge.summary_tracker._monotonic = lambda: 5
+    bridge.publish_due_summaries(
+        datetime(2026, 4, 26, 10, 15, 38, tzinfo=timezone.utc),
+    )
+
+    assert [topic for topic, _kwargs in bridge.mqtt_client.calls] == [
+        "measurements/RTR970123/15006",
+        "measurements/RTR970123/15007",
+        "summary/RTR970123",
+    ]
+    summary_payload = json.loads(bridge.mqtt_client.calls[-1][1]["payload"])
+    assert bridge.mqtt_client.calls[-1][1]["retain"] is True
+    assert set(summary_payload["transmitters"]) == {"15006", "15007"}
+    assert summary_payload["transmitters"]["15006"]["value"] == 22.9
+    assert summary_payload["transmitters"]["15006"]["status"] == "online"
+    assert summary_payload["transmitters"]["15006"]["status_code"] == 1
+    assert summary_payload["transmitters"]["15006"]["location"] == "Technical room"
+
+
+def test_bridge_summary_updates_status_to_offline_without_clearing_value():
+    """
+    Offline status transitions update summary availability only.
+    """
+
+    class FakeClient:
+        def __init__(self):
+            self.calls = []
+
+        def publish(self, topic, **kwargs):
+            self.calls.append((topic, kwargs))
+            return (0, len(self.calls))
+
+    bridge = runtime.MtrBridge(
+        SimpleNamespace(
+            scl_address=126,
+            offline_timeout=60,
+            summary_debounce_seconds=5,
+        )
+    )
+    bridge.receiver = runtime.ReceiverConnection(
+        serial_handle=SimpleNamespace(),
+        device_type="RTR970",
+        receiver_serial_number="RTR970123",
+        serial_config={},
+    )
+    bridge.mqtt_client = FakeClient()
+    receiver = bridge.receiver.receiver_serial_number
+    observed_at = datetime(2026, 4, 26, 10, 15, 32, tzinfo=timezone.utc)
+    offline_at = datetime(2026, 4, 26, 10, 16, 33, tzinfo=timezone.utc)
+
+    bridge.summary_tracker._monotonic = lambda: 0
+    bridge.status_tracker.record_observation(receiver, "15006", observed_at)
+    bridge.summary_tracker.record_measurement(
+        receiver,
+        {
+            "id": "15006",
+            "reading": 22.9,
+            "timestamp": "2026-04-26T10:15:32Z",
+        },
+        bridge.status_tracker.sensor_payload(receiver, "15006", observed_at),
+    )
+    bridge.publish_status_changes(observed_at)
+    bridge.summary_tracker._monotonic = lambda: 5
+    bridge.publish_due_summaries(observed_at)
+
+    bridge.summary_tracker._monotonic = lambda: 10
+    bridge.publish_status_changes(offline_at)
+    bridge.summary_tracker._monotonic = lambda: 15
+    bridge.publish_due_summaries(offline_at)
+
+    summary_payloads = [
+        json.loads(kwargs["payload"])
+        for topic, kwargs in bridge.mqtt_client.calls
+        if topic == "summary/RTR970123"
+    ]
+    assert len(summary_payloads) == 2
+    entry = summary_payloads[-1]["transmitters"]["15006"]
+    assert entry["value"] == 22.9
+    assert entry["measured_at"] == "2026-04-26T10:15:32Z"
+    assert entry["status"] == "offline"
+    assert entry["status_code"] == 0
 
 
 def test_log_measurement_adds_structured_measurement_payload(caplog):
