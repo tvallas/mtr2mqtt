@@ -123,3 +123,59 @@ def test_table_view_can_colorize_headers_and_cells(monkeypatch):
     assert "\033[1;38;5;255m" in rendered
     assert "\033[1;38;5;117m" in rendered
     assert "\033[38;5;121m" in rendered
+
+
+def test_table_view_includes_status_information(monkeypatch):
+    """
+    Measurement rows show human-readable status.
+    """
+    stream = io.StringIO()
+    view = MeasurementTableView(stream=stream)
+    monkeypatch.setattr(
+        "mtr2mqtt.table_view.shutil.get_terminal_size",
+        lambda *args, **kwargs: os.terminal_size((160, 24)),
+    )
+
+    view.update(
+        "RTR970123",
+        '{"id":"15006","reading":22.7}',
+        status_payload={"status": "online", "status_code": 1},
+    )
+
+    rendered = stream.getvalue().split("\x1b[H\x1b[2J")[-1]
+    assert "status" in rendered
+    assert "online" in rendered
+    assert "status_code" not in rendered
+
+
+def test_table_view_reflects_offline_status_transition(monkeypatch):
+    """
+    Status-only updates redraw existing rows when a sensor times out.
+    """
+    stream = io.StringIO()
+    view = MeasurementTableView(stream=stream)
+    monkeypatch.setattr(
+        "mtr2mqtt.table_view.shutil.get_terminal_size",
+        lambda *args, **kwargs: os.terminal_size((160, 24)),
+    )
+
+    view.update(
+        "RTR970123",
+        '{"id":"15006","reading":22.7}',
+        status_payload={"status": "online", "status_code": 1},
+    )
+    view.update_statuses(
+        [
+            {
+                "entity_type": "sensor",
+                "receiver": "RTR970123",
+                "sensor": "15006",
+                "status": "offline",
+                "status_code": 0,
+            }
+        ]
+    )
+
+    rendered = stream.getvalue().split("\x1b[H\x1b[2J")[-1]
+    assert "offline" in rendered
+    assert "online" not in rendered

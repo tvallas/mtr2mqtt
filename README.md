@@ -38,6 +38,8 @@ By default, runtime logs are emitted as one JSON object per line. When running i
 
 For a human-focused live view, use `--output table`. In this mode, the console shows the latest reading for each sensor in a continuously refreshed table instead of printing each measurement as a log line. The table starts with a stable set of core columns and automatically adds extra columns for additional measurement or metadata fields when they appear. The nested `ha` metadata block is excluded from the table. Table output requires an interactive terminal.
 
+The table view also includes sensor availability status. It shows the latest textual status and numeric status code, and timeout-driven offline transitions are reflected even when no fresh readings arrive.
+
 Enable Home Assistant discovery:
 
 ```sh
@@ -48,6 +50,12 @@ Use a custom discovery prefix or node id:
 
 ```sh
 mtr2mqtt --ha-discovery --ha-discovery-prefix ha --ha-discovery-node-id mtr-bridge-1
+```
+
+Configure the offline timeout used by retained status topics and table status:
+
+```sh
+mtr2mqtt --offline-timeout 1800
 ```
 
 Use the live table view:
@@ -180,6 +188,55 @@ measurements/<receiver_serial_number>/<sensor_id>
 Where `<receiver_serial_number>` is the serial number of the receiver and `<sensor_id>` is the unique identifier for the sensor.
 
 This measurement topic structure remains unchanged even when Home Assistant discovery is enabled.
+
+### Status Topics
+
+mtr2mqtt also publishes retained status payloads for observed receivers and sensors:
+
+```text
+status/<receiver_serial_number>
+status/<receiver_serial_number>/<sensor_id>
+```
+
+Receiver status example:
+
+```json
+{
+  "entity_type": "receiver",
+  "receiver": "receiver-a",
+  "status": "online",
+  "status_code": 1,
+  "last_received_at": "2026-04-26T10:15:32Z",
+  "last_publish_at": "2026-04-26T10:15:33Z",
+  "error_count": 0
+}
+```
+
+Sensor status example:
+
+```json
+{
+  "entity_type": "sensor",
+  "receiver": "receiver-a",
+  "sensor": "sensor-123",
+  "status": "offline",
+  "status_code": 0,
+  "last_received_at": "2026-04-26T08:42:10Z",
+  "last_publish_at": "2026-04-26T08:42:10Z",
+  "error_count": 2
+}
+```
+
+Status values use this exact numeric mapping:
+
+- `offline` = `0`
+- `online` = `1`
+
+An entity is `online` after it has been observed at least once and the last valid traffic is within the configured offline timeout. It becomes `offline` after the timeout passes. The default offline timeout is 30 minutes (`1800` seconds) and can be changed with `--offline-timeout` or `MTR2MQTT_OFFLINE_TIMEOUT`.
+
+Status topics are retained so downstream tooling can evaluate current receiver and sensor availability immediately after subscribing. Numeric `status_code` values are intended for simple alert conditions in tools such as `tvallas/mqtt-alerts`.
+
+Never-seen sensors are not fabricated at startup and do not publish offline status. Measurement topics and payloads are intentionally left untouched when a receiver or sensor goes offline: mtr2mqtt does not publish synthetic `null`, `0`, `"offline"`, or any other fake reading to `measurements/...`.
 
 ### Home Assistant MQTT Discovery
 

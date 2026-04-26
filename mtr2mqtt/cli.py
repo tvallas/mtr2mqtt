@@ -108,6 +108,14 @@ def create_parser():
         type=int,
     )
     parser.add_argument(
+        "--offline-timeout",
+        help="Seconds before observed receivers or sensors are marked offline "
+        "(ENV: MTR2MQTT_OFFLINE_TIMEOUT)",
+        default=_env_int("MTR2MQTT_OFFLINE_TIMEOUT", 30 * 60),
+        required=False,
+        type=int,
+    )
+    parser.add_argument(
         "--scl-address",
         help="SCL address 0...123 or 126 for broadcast (ENV: MTR2MQTT_SCL_ADDRESS)",
         default=_env_int("MTR2MQTT_SCL_ADDRESS", 126),
