@@ -127,7 +127,7 @@ def test_table_view_can_colorize_headers_and_cells(monkeypatch):
 
 def test_table_view_includes_status_information(monkeypatch):
     """
-    Measurement rows can show textual and numeric status.
+    Measurement rows show human-readable status.
     """
     stream = io.StringIO()
     view = MeasurementTableView(stream=stream)
@@ -144,9 +144,8 @@ def test_table_view_includes_status_information(monkeypatch):
 
     rendered = stream.getvalue().split("\x1b[H\x1b[2J")[-1]
     assert "status" in rendered
-    assert "status_code" in rendered
     assert "online" in rendered
-    assert "1" in rendered
+    assert "status_code" not in rendered
 
 
 def test_table_view_reflects_offline_status_transition(monkeypatch):

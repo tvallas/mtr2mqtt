@@ -14,7 +14,6 @@ CORE_COLUMNS = [
     "receiver",
     "id",
     "status",
-    "status_code",
     "location",
     "quantity",
     "reading",
@@ -44,7 +43,6 @@ RESET = "\033[0m"
 PREFERRED_WIDTHS = {
     "id": 8,
     "status": 7,
-    "status_code": 11,
     "reading": 10,
     "battery": 7,
     "rsl": 6,
@@ -54,7 +52,6 @@ MAX_WIDTHS = {
     "receiver": 16,
     "id": 8,
     "status": 7,
-    "status_code": 11,
     "location": 20,
     "quantity": 16,
     "reading": 10,
@@ -120,7 +117,6 @@ class MeasurementTableView:
         row_key = (receiver_serial_number, sensor_id)
         if status_payload:
             row["status"] = status_payload.get("status")
-            row["status_code"] = status_payload.get("status_code")
         self.rows[row_key] = row
 
         known_columns = set(CORE_COLUMNS + OPTIONAL_COLUMNS + self.dynamic_columns)
@@ -146,10 +142,9 @@ class MeasurementTableView:
             if row_key not in self.rows:
                 continue
             row = self.rows[row_key]
-            for column in ("status", "status_code"):
-                if row.get(column) != status_payload.get(column):
-                    row[column] = status_payload.get(column)
-                    changed = True
+            if row.get("status") != status_payload.get("status"):
+                row["status"] = status_payload.get("status")
+                changed = True
         if changed:
             self.render()
 
@@ -289,7 +284,7 @@ class MeasurementTableView:
             color = ID_COLOR
         elif column in {"reading", "unit"}:
             color = READING_COLOR
-        elif column in {"battery", "rsl", "type", "status", "status_code"}:
+        elif column in {"battery", "rsl", "type", "status"}:
             color = STATUS_COLOR
         elif column == "timestamp":
             color = TIMESTAMP_COLOR
