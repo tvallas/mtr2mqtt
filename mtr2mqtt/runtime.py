@@ -19,6 +19,7 @@ from mtr2mqtt import homeassistant
 from mtr2mqtt import mtr
 from mtr2mqtt import scl
 from mtr2mqtt import status
+from mtr2mqtt import summary
 from mtr2mqtt.table_view import MeasurementTableView
 
 
@@ -433,6 +434,32 @@ def publish_status(mqtt_client, topic, payload):
     return result, mid
 
 
+def publish_summary(mqtt_client, receiver, payload):
+    """
+    Publish a retained receiver summary payload.
+    """
+    topic = summary.summary_topic(receiver)
+    if not getattr(mqtt_client, "connected_flag", True):
+        logging.warning(
+            "Skipping summary publish for %s because MQTT is disconnected",
+            topic,
+        )
+        return mqtt.MQTT_ERR_NO_CONN, None
+
+    try:
+        result, mid = mqtt_client.publish(
+            topic,
+            payload=json.dumps(payload, sort_keys=True),
+            qos=1,
+            retain=True,
+        )
+    except (OSError, RuntimeError, TypeError, ValueError):
+        logging.exception("Publishing summary failed for topic %s", topic)
+        return mqtt.MQTT_ERR_NO_CONN, None
+    logging.debug("summary publish result: %s, mid: %s", result, mid)
+    return result, mid
+
+
 class MtrBridge:  # pylint: disable=too-many-instance-attributes
     """
     Long-running runtime for polling an MTR receiver and publishing to MQTT.
@@ -448,6 +475,13 @@ class MtrBridge:  # pylint: disable=too-many-instance-attributes
         self.output_view = self._create_output_view()
         self.status_tracker = status.StatusTracker(
             offline_timeout=getattr(self.args, "offline_timeout", 30 * 60),
+        )
+        self.summary_tracker = summary.SummaryTracker(
+            debounce_seconds=getattr(
+                self.args,
+                "summary_debounce_seconds",
+                summary.DEFAULT_DEBOUNCE_SECONDS,
+            ),
         )
         self._last_status_sweep = 0
 
@@ -582,6 +616,7 @@ class MtrBridge:  # pylint: disable=too-many-instance-attributes
 
         published = []
         for key, payload, rendered in self.status_tracker.changed_payloads(now):
+            self.summary_tracker.record_status(payload)
             result, mid = publish_status(
                 self.mqtt_client,
                 self._status_topic(payload),
@@ -589,6 +624,23 @@ class MtrBridge:  # pylint: disable=too-many-instance-attributes
             )
             if result == mqtt.MQTT_ERR_SUCCESS:
                 self.status_tracker.mark_status_published(key, rendered)
+                published.append((payload, mid))
+        return published
+
+    def publish_due_summaries(self, now=None):
+        """
+        Publish retained receiver summaries whose debounce interval has elapsed.
+        """
+        if self.mqtt_client is None:
+            return []
+
+        published = []
+        for receiver, payload, rendered in self.summary_tracker.due_payloads(
+            updated_at=now,
+        ):
+            result, mid = publish_summary(self.mqtt_client, receiver, payload)
+            if result == mqtt.MQTT_ERR_SUCCESS:
+                self.summary_tracker.mark_published(receiver, rendered)
                 published.append((payload, mid))
         return published
 
@@ -605,6 +657,7 @@ class MtrBridge:  # pylint: disable=too-many-instance-attributes
         published = self.publish_status_changes(now)
         if self.output_view is not None:
             self.output_view.update_statuses(self.status_tracker.sensor_payloads(now))
+        self.publish_due_summaries(now)
         return published
 
     def run_forever(self):
@@ -615,6 +668,7 @@ class MtrBridge:  # pylint: disable=too-many-instance-attributes
         try:
             while True:
                 self.sweep_status()
+                self.publish_due_summaries()
                 poll_result = self.poll_once()
                 if poll_result.measurement_json:
                     measurement = json.loads(poll_result.measurement_json)
@@ -638,6 +692,15 @@ class MtrBridge:  # pylint: disable=too-many-instance-attributes
                         )
                     else:
                         log_measurement(poll_result.measurement_json)
+                    self.summary_tracker.record_measurement(
+                        receiver_serial_number,
+                        measurement,
+                        self.status_tracker.sensor_payload(
+                            receiver_serial_number,
+                            sensor_id,
+                            now,
+                        ),
+                    )
                     result, _mid = self.publish_measurement(poll_result.measurement_json)
                     if result == mqtt.MQTT_ERR_SUCCESS:
                         self.status_tracker.record_publish_success(
@@ -651,6 +714,7 @@ class MtrBridge:  # pylint: disable=too-many-instance-attributes
                             sensor_id,
                         )
                     self.publish_status_changes()
+                    self.publish_due_summaries()
                     continue
                 if poll_result.state in {
                     BridgeState.IDLE,

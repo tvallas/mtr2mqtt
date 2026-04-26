@@ -36,6 +36,7 @@ def test_parser_defaults_without_arguments(monkeypatch):
     monkeypatch.delenv("MTR2MQTT_BAUDRATE", raising=False)
     monkeypatch.delenv("MTR2MQTT_SERIAL_TIMEOUT", raising=False)
     monkeypatch.delenv("MTR2MQTT_OFFLINE_TIMEOUT", raising=False)
+    monkeypatch.delenv("MTR2MQTT_SUMMARY_DEBOUNCE_SECONDS", raising=False)
     monkeypatch.delenv("MTR2MQTT_SCL_ADDRESS", raising=False)
     monkeypatch.delenv("MTR2MQTT_MQTT_HOST", raising=False)
     monkeypatch.delenv("MTR2MQTT_MQTT_PORT", raising=False)
@@ -55,6 +56,7 @@ def test_parser_defaults_without_arguments(monkeypatch):
     assert args.baudrate == 9600
     assert args.serial_timeout == 1
     assert args.offline_timeout == 1800
+    assert args.summary_debounce_seconds == 5
     assert args.scl_address == 126
     assert args.mqtt_host is None
     assert args.mqtt_port == 1883
@@ -77,6 +79,7 @@ def test_parser_reads_environment_defaults(monkeypatch):
     monkeypatch.setenv("MTR2MQTT_BAUDRATE", "115200")
     monkeypatch.setenv("MTR2MQTT_SERIAL_TIMEOUT", "5")
     monkeypatch.setenv("MTR2MQTT_OFFLINE_TIMEOUT", "120")
+    monkeypatch.setenv("MTR2MQTT_SUMMARY_DEBOUNCE_SECONDS", "7")
     monkeypatch.setenv("MTR2MQTT_SCL_ADDRESS", "1")
     monkeypatch.setenv("MTR2MQTT_MQTT_HOST", "mqtt.example")
     monkeypatch.setenv("MTR2MQTT_MQTT_PORT", "1884")
@@ -96,6 +99,7 @@ def test_parser_reads_environment_defaults(monkeypatch):
     assert args.baudrate == 115200
     assert args.serial_timeout == 5
     assert args.offline_timeout == 120
+    assert args.summary_debounce_seconds == 7
     assert args.scl_address == 1
     assert args.mqtt_host == "mqtt.example"
     assert args.mqtt_port == 1884

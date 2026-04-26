@@ -58,6 +58,12 @@ Configure the offline timeout used by retained status topics and table status:
 mtr2mqtt --offline-timeout 1800
 ```
 
+Configure the retained receiver summary debounce interval:
+
+```sh
+mtr2mqtt --summary-debounce-seconds 5
+```
+
 Use the live table view:
 
 ```sh
@@ -237,6 +243,58 @@ An entity is `online` after it has been observed at least once and the last vali
 Status topics are retained so downstream tooling can evaluate current receiver and sensor availability immediately after subscribing. Numeric `status_code` values are intended for simple alert conditions in tools such as `tvallas/mqtt-alerts`.
 
 Never-seen sensors are not fabricated at startup and do not publish offline status. Measurement topics and payloads are intentionally left untouched when a receiver or sensor goes offline: mtr2mqtt does not publish synthetic `null`, `0`, `"offline"`, or any other fake reading to `measurements/...`.
+
+### Receiver Summary Topics
+
+mtr2mqtt also publishes a compact retained receiver-level summary document:
+
+```text
+summary/<receiver_serial_number>
+```
+
+The summary topic is an additive materialized view for dashboards, operators, and simple consumers that want the latest values for one receiver without subscribing to every `measurements/<receiver_serial_number>/<sensor_id>` topic and merging state themselves. It does not replace measurement topics or status topics, and those existing topic payloads remain unchanged.
+
+Summary example:
+
+```json
+{
+  "receiver": "receiver-a",
+  "updated_at": "2026-04-26T12:00:00Z",
+  "transmitters": {
+    "sensor-101": {
+      "value": 21.4,
+      "measured_at": "2026-04-26T11:58:12Z",
+      "status": "online",
+      "status_code": 1,
+      "location": "Technical room",
+      "description": "Floor heating input",
+      "unit": "°C",
+      "quantity": "Temperature",
+      "zone": "Heating"
+    }
+  }
+}
+```
+
+Top-level fields:
+
+- `receiver`: receiver identifier
+- `updated_at`: UTC timestamp for the summary publish
+- `transmitters`: map of observed transmitter ids to compact latest state
+
+Each transmitter entry includes:
+
+- `value`: latest real measurement value from the measurement `reading`
+- `measured_at`: timestamp of that real measurement
+- `status`: current transmitter availability from the status tracker
+- `status_code`: `online` = `1`, `offline` = `0`
+- `location`, `description`, `unit`, `quantity`, and `zone` when available in metadata
+
+The summary intentionally includes only the selected metadata fields that help interpret the value directly. It does not mirror the full metadata model, the Home Assistant metadata block, or arbitrary internal fields.
+
+Only transmitters seen at least once are included. If a transmitter later goes offline, it remains in the summary with its last real `value` and `measured_at`; freshness is represented by `status` and `status_code`. mtr2mqtt does not publish synthetic offline readings or clear the last value.
+
+Summary messages are retained so new subscribers immediately receive the latest receiver snapshot. Summary publishing is coalesced per receiver with `--summary-debounce-seconds` or `MTR2MQTT_SUMMARY_DEBOUNCE_SECONDS`, defaulting to 5 seconds. Incoming measurements and status changes update in-memory state immediately, but full summary publishes are delayed so multiple rapid updates produce one retained summary publish instead of a full document on every reading.
 
 ### Home Assistant MQTT Discovery
 
