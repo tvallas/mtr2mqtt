@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.8.2 (2026-04-26)
+
+### Bug Fixes
+
+- **deps**: Update GitPython for security advisories
+  ([`3e0ba4f`](https://github.com/tvallas/mtr2mqtt/commit/3e0ba4fa505c60a0161f9b22b4b3fd34434c6b81))
+
+### Chores
+
+- **deps**: Bump docker/build-push-action from 6 to 7
+  ([`517a8c2`](https://github.com/tvallas/mtr2mqtt/commit/517a8c2eecb2c65695cfce0e1aefc4d591b0f0ff))
+
+- **deps**: Bump docker/login-action from 3 to 4
+  ([`0c4f296`](https://github.com/tvallas/mtr2mqtt/commit/0c4f296436b27040eff064db3ff9f7f4d92a1d9b))
+
+
 ## v0.8.1 (2026-04-18)
 
 ### Bug Fixes
