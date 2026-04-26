@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.9.0 (2026-04-26)
+
+### Bug Fixes
+
+- **table**: Show only textual availability status
+  ([`0493a7f`](https://github.com/tvallas/mtr2mqtt/commit/0493a7f683568f1d8b40a7d98c2685f50e6bac92))
+
+### Features
+
+- **status**: Publish retained availability state
+  ([`8226c62`](https://github.com/tvallas/mtr2mqtt/commit/8226c62f8588f94811e1f29d0d5615039137d1dc))
+
+
 ## v0.8.2 (2026-04-26)
 
 ### Bug Fixes
