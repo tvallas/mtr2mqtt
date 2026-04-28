@@ -263,6 +263,7 @@ Summary example:
   "transmitters": {
     "sensor-101": {
       "value": 21.4,
+      "battery": 2.6,
       "measured_at": "2026-04-26T11:58:12Z",
       "status": "online",
       "status_code": 1,
@@ -285,6 +286,7 @@ Top-level fields:
 Each transmitter entry includes:
 
 - `value`: latest real measurement value from the measurement `reading`
+- `battery`: latest battery voltage when the transmitter reports it
 - `measured_at`: timestamp of that real measurement
 - `status`: current transmitter availability from the status tracker
 - `status_code`: `online` = `1`, `offline` = `0`

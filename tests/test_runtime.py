@@ -497,6 +497,7 @@ def test_publish_summary_uses_retained_receiver_summary_topic():
         "transmitters": {
             "15006": {
                 "value": 22.9,
+                "battery": 2.6,
                 "measured_at": "2026-04-26T10:15:32Z",
                 "status": "online",
                 "status_code": 1,
@@ -583,6 +584,7 @@ def test_bridge_coalesces_summary_publish_without_changing_existing_topics():
     measurement_one = {
         "id": "15006",
         "reading": 22.9,
+        "battery": 2.6,
         "timestamp": "2026-04-26T10:15:32Z",
         "location": "Technical room",
         "description": "Floor heating input",
@@ -651,6 +653,7 @@ def test_bridge_coalesces_summary_publish_without_changing_existing_topics():
     assert bridge.mqtt_client.calls[-1][1]["retain"] is True
     assert set(summary_payload["transmitters"]) == {"15006", "15007"}
     assert summary_payload["transmitters"]["15006"]["value"] == 22.9
+    assert summary_payload["transmitters"]["15006"]["battery"] == 2.6
     assert summary_payload["transmitters"]["15006"]["status"] == "online"
     assert summary_payload["transmitters"]["15006"]["status_code"] == 1
     assert summary_payload["transmitters"]["15006"]["location"] == "Technical room"
@@ -694,6 +697,7 @@ def test_bridge_summary_updates_status_to_offline_without_clearing_value():
         {
             "id": "15006",
             "reading": 22.9,
+            "battery": 2.6,
             "timestamp": "2026-04-26T10:15:32Z",
         },
         bridge.status_tracker.sensor_payload(receiver, "15006", observed_at),
@@ -715,6 +719,7 @@ def test_bridge_summary_updates_status_to_offline_without_clearing_value():
     assert len(summary_payloads) == 2
     entry = summary_payloads[-1]["transmitters"]["15006"]
     assert entry["value"] == 22.9
+    assert entry["battery"] == 2.6
     assert entry["measured_at"] == "2026-04-26T10:15:32Z"
     assert entry["status"] == "offline"
     assert entry["status_code"] == 0
