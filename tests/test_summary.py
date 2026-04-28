@@ -28,6 +28,7 @@ def test_summary_payload_contains_known_transmitters_and_selected_metadata():
         {
             "id": "sensor-101",
             "reading": 21.4,
+            "battery": 2.6,
             "timestamp": "2026-04-26T11:58:12Z",
             "location": "Technical room",
             "description": "Floor heating input",
@@ -44,6 +45,7 @@ def test_summary_payload_contains_known_transmitters_and_selected_metadata():
         {
             "id": "sensor-102",
             "reading": 48.1,
+            "battery": 2.8,
             "timestamp": "2026-04-26T11:55:01+00:00",
             "location": "Boiler room",
         },
@@ -60,6 +62,7 @@ def test_summary_payload_contains_known_transmitters_and_selected_metadata():
     assert set(payload["transmitters"]) == {"sensor-101", "sensor-102"}
     assert payload["transmitters"]["sensor-101"] == {
         "value": 21.4,
+        "battery": 2.6,
         "measured_at": "2026-04-26T11:58:12Z",
         "status": "online",
         "status_code": 1,
@@ -83,6 +86,7 @@ def test_offline_transmitter_keeps_last_real_value():
         {
             "id": "sensor-101",
             "reading": 21.4,
+            "battery": 2.6,
             "timestamp": "2026-04-26T11:58:12Z",
         },
         {"status": "online", "status_code": 1},
@@ -100,9 +104,30 @@ def test_offline_transmitter_keeps_last_real_value():
 
     entry = tracker.payload("receiver-a")["transmitters"]["sensor-101"]
     assert entry["value"] == 21.4
+    assert entry["battery"] == 2.6
     assert entry["measured_at"] == "2026-04-26T11:58:12Z"
     assert entry["status"] == "offline"
     assert entry["status_code"] == 0
+
+
+def test_summary_omits_battery_when_measurement_has_no_battery_value():
+    """
+    Summary entries include battery only when the measurement provides it.
+    """
+    tracker = summary.SummaryTracker(debounce_seconds=5, monotonic=lambda: 0)
+
+    tracker.record_measurement(
+        "receiver-a",
+        {
+            "id": "sensor-101",
+            "reading": 21.4,
+            "timestamp": "2026-04-26T11:58:12Z",
+        },
+        {"status": "online", "status_code": 1},
+    )
+
+    entry = tracker.payload("receiver-a")["transmitters"]["sensor-101"]
+    assert "battery" not in entry
 
 
 def test_status_does_not_fabricate_never_seen_transmitters():

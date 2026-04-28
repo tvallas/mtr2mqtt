@@ -44,6 +44,7 @@ class TransmitterSummary:
     """
 
     value: object = None
+    battery: object = None
     measured_at: str | None = None
     status: str | None = None
     status_code: int | None = None
@@ -59,6 +60,8 @@ class TransmitterSummary:
             "status": self.status,
             "status_code": self.status_code,
         }
+        if self.battery is not None:
+            data["battery"] = self.battery
         if self.metadata:
             data.update(self.metadata)
         return data
@@ -91,6 +94,7 @@ class SummaryTracker:
         current = self.transmitters.get(key)
         updated = TransmitterSummary(
             value=measurement.get("reading"),
+            battery=measurement.get("battery"),
             measured_at=_measurement_timestamp(measurement),
             status=(
                 status_payload.get("status")
