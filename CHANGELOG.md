@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.11.0 (2026-04-28)
+
+### Features
+
+- **summary**: Include transmitter battery voltage
+  ([`76e4686`](https://github.com/tvallas/mtr2mqtt/commit/76e46867d8b92af4f9f2dacfcca370df31fb3a66))
+
+
 ## v0.10.0 (2026-04-26)
 
 ### Features
