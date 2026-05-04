@@ -25,7 +25,7 @@ jobs:
 
       - name: Run Trivy filesystem scan
         id: trivy_fs
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         continue-on-error: true
         with:
           scan-type: fs
@@ -48,7 +48,7 @@ jobs:
 
       - name: Run Trivy image scan
         id: trivy_image
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         continue-on-error: true
         with:
           image-ref: mtr2mqtt:trivy-${{ github.sha }}
