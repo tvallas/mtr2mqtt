@@ -17,6 +17,13 @@ def test_summary_topic_uses_receiver_namespace():
     assert summary.summary_topic("receiver-a") == "summary/receiver-a"
 
 
+def test_summary_topic_sanitizes_receiver_fragment():
+    """
+    Summary topics keep the receiver id within one topic level.
+    """
+    assert summary.summary_topic("receiver/a+#") == "summary/receiver_a"
+
+
 def test_summary_payload_contains_known_transmitters_and_selected_metadata():
     """
     Summary payloads include compact latest transmitter state.

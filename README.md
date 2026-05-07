@@ -167,7 +167,9 @@ Each sensor entry should include:
 - `description`: A descriptive label for the sensor.
 - `unit`: The unit of measurement for the sensor's readings.
 
-**Note:** Other metadata fields can be freely added and those are added to the JSON object.
+**Note:** Other metadata fields can be added and those are added to the JSON object,
+except for core measurement fields such as `battery`, `type`, `rsl`, `id`, `reading`,
+`timestamp`, `message`, `calibrated`, and `utility`.
 
 The optional `ha:` block is used only for Home Assistant discovery customization. It can override the main reading entity metadata with fields such as `name`, `device_class`, `state_class`, `suggested_display_precision`, and `icon`. Existing metadata files continue to work unchanged.
 
@@ -372,7 +374,9 @@ To align better with typical Home Assistant sensor setups, the primary reading e
 - `reading`: The current reading from the sensor.
 - `timestamp`: The timestamp of the reading in ISO 8601 format.
 
-**Note:** Other metadata fields can be freely added and those are added to the JSON object.
+**Note:** Other metadata fields can be added and those are added to the JSON object,
+except for core measurement fields such as `battery`, `type`, `rsl`, `id`, `reading`,
+`timestamp`, `message`, `calibrated`, and `utility`.
 
 ## Preparing the Development Environment
 

@@ -20,7 +20,8 @@ RUN apk upgrade --no-cache
 
 COPY --from=builder /tmp/wheels /tmp/wheels
 
-RUN python -m pip install --no-cache-dir --no-compile /tmp/wheels/*.whl && \
+RUN python -m pip install --no-cache-dir --upgrade pip && \
+    python -m pip install --no-cache-dir --no-compile /tmp/wheels/*.whl && \
     rm -rf /tmp/wheels
 
 ENTRYPOINT ["mtr2mqtt"]

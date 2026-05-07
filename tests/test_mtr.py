@@ -45,6 +45,7 @@ MTR_TOO_SHORT_INPUT = "0 90 58 15006"
 MTR_SIZE_MISMATCH_INPUT = "0 122 58 15006 145 11"
 MTR_CSR260_READING_INPUT = "11 90 58 15006 145 11"
 MTR_MALFORMED_LENGTH_INPUT = "0 xx 58 15006 145 11"
+MTR_MALFORMED_TRANSMITTER_ID_INPUT = "0 90 58 15/006 145 11"
 MTR_UNKNOWN_TYPE_INPUT = "99 90 58 15006 145 11"
 
 
@@ -157,6 +158,33 @@ def test_mtr_response_to_json_with_metadata_merge():
 
 
 @freeze_time("2020-09-23 19:34:13.497019+00:00")
+def test_mtr_response_to_json_ignores_metadata_for_reserved_measurement_fields():
+    """
+    Metadata must not override measured telemetry fields.
+    """
+    transmitters_metadata = json.dumps([
+        {
+            "id": 15006,
+            "reading": 999,
+            "battery": 9.9,
+            "type": "spoofed",
+            "timestamp": "spoofed",
+            "location": "Living room",
+        }
+    ])
+
+    assert json.loads(mtr.mtr_response_to_json(MTR_READING_INPUT, transmitters_metadata)) == {
+        "battery": 2.6,
+        "type": "FT10",
+        "rsl": -69,
+        "id": "15006",
+        "reading": 22.9,
+        "timestamp": "2020-09-23 19:34:13.497019+00:00",
+        "location": "Living room",
+    }
+
+
+@freeze_time("2020-09-23 19:34:13.497019+00:00")
 def test_mtr_response_to_json_with_missing_metadata_keeps_original_payload():
     """
     Missing transmitter metadata does not change the produced JSON.
@@ -225,6 +253,13 @@ def test_mtr_response_to_json_returns_none_for_malformed_message():
     Malformed payload fields are ignored instead of raising.
     """
     assert mtr.mtr_response_to_json(MTR_MALFORMED_LENGTH_INPUT, None) is None
+
+
+def test_mtr_response_to_json_returns_none_for_malformed_transmitter_id():
+    """
+    Non-numeric transmitter ids are rejected before they can reach MQTT topics.
+    """
+    assert mtr.mtr_response_to_json(MTR_MALFORMED_TRANSMITTER_ID_INPUT, None) is None
 
 
 def test_mtr_response_to_json_returns_none_for_unknown_transmitter_type():

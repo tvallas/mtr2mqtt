@@ -124,6 +124,17 @@ def test_status_topics_are_separate_from_measurement_topics():
     )
 
 
+def test_status_topics_sanitize_receiver_and_sensor_fragments():
+    """
+    Status topic ids cannot add topic levels or MQTT wildcard characters.
+    """
+    assert status.receiver_status_topic("receiver/a+#") == "status/receiver_a"
+    assert (
+        status.sensor_status_topic("receiver/a+#", "sensor/123+#")
+        == "status/receiver_a/sensor_123"
+    )
+
+
 def test_never_seen_sensor_does_not_publish_offline_state():
     """
     The tracker only emits status payloads for observed entities.

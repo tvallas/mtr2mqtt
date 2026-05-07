@@ -9,6 +9,8 @@ import logging
 import re
 from importlib.metadata import PackageNotFoundError, version
 
+from mtr2mqtt.topics import topic_fragment
+
 
 def sanitize_id(value):
     """
@@ -22,7 +24,9 @@ def state_topic(receiver_serial_number, sensor_id):
     """
     Build the measurement state topic.
     """
-    return f"measurements/{receiver_serial_number}/{sensor_id}"
+    receiver = topic_fragment(receiver_serial_number)
+    sensor = topic_fragment(sensor_id)
+    return f"measurements/{receiver}/{sensor}"
 
 
 def device_identifier(sensor_id):
