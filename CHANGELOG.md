@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.11.1 (2026-05-07)
+
+### Bug Fixes
+
+- **docker**: Upgrade runtime pip before install
+  ([`cd05ec4`](https://github.com/tvallas/mtr2mqtt/commit/cd05ec482dee2017e5b84a358a5c1e314a8eb893))
+
+- **security**: Sanitize mqtt topic identifiers
+  ([`8d82c0e`](https://github.com/tvallas/mtr2mqtt/commit/8d82c0ef603b3d14cbf5f8b9216d40bc0c688841))
+
+### Chores
+
+- **deps**: Bump aquasecurity/trivy-action
+  ([`946970d`](https://github.com/tvallas/mtr2mqtt/commit/946970d26c9a1da0e472644489f6071497cf3d4a))
+
+
 ## v0.11.0 (2026-04-28)
 
 ### Features
