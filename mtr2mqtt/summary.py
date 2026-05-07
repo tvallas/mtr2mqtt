@@ -10,6 +10,7 @@ import json
 import time
 
 from mtr2mqtt import status as status_module
+from mtr2mqtt.topics import topic_fragment
 
 
 SUMMARY_TOPIC_PREFIX = "summary"
@@ -21,7 +22,7 @@ def summary_topic(receiver, prefix=SUMMARY_TOPIC_PREFIX):
     """
     Build the retained receiver summary topic.
     """
-    return f"{prefix}/{receiver}"
+    return f"{prefix}/{topic_fragment(receiver)}"
 
 
 def _measurement_timestamp(measurement):

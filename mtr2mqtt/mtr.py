@@ -16,6 +16,20 @@ from collections import namedtuple
 from collections import defaultdict
 from mtr2mqtt import metadata
 
+
+RESERVED_METADATA_FIELDS = frozenset({
+    "battery",
+    "type",
+    "rsl",
+    "id",
+    "reading",
+    "timestamp",
+    "message",
+    "calibrated",
+    "utility",
+})
+
+
 class TransmitterType(Enum):
     """ MTR series Transmitter types """
     FT10 = 0
@@ -72,7 +86,7 @@ def _get_header_fields(payload):
             battery_voltage = (
                 int(payload_fields[1]) & 31
             ) / 10  # clear 3 highest bits used for data length (31 = 00011111)
-            transmitter_id = str(payload_fields[3])
+            transmitter_id = str(int(payload_fields[3]))
             rsl = (int(payload_fields[2]) & 127) - 127
         except (IndexError, ValueError):
             logging.warning("Malformed payload header, skipping payload: %s", payload)
@@ -219,6 +233,11 @@ def mtr_response_to_json(payload, transmitters_metadata):
             )
             logging.debug("Transmitter info: %s", transmitter_information)
             if transmitter_information:
+                transmitter_information = {
+                    key: value
+                    for key, value in transmitter_information.items()
+                    if key not in RESERVED_METADATA_FIELDS
+                }
                 data_with_transmitter_info = {**data, **transmitter_information}
                 return json.dumps(data_with_transmitter_info)
         return json.dumps(data)

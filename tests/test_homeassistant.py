@@ -33,6 +33,16 @@ def test_discovery_topic_with_node_id():
     )
 
 
+def test_state_topic_sanitizes_receiver_and_sensor_fragments():
+    """
+    Measurement topics keep receiver and sensor ids within one topic level each.
+    """
+    assert (
+        homeassistant.state_topic("RTR/970+#", "15/006+#")
+        == "measurements/RTR_970/15_006"
+    )
+
+
 def test_build_discovery_payload_contains_expected_components():
     """
     Device discovery payloads include reading, battery, and rsl components.
@@ -73,6 +83,29 @@ def test_build_discovery_payload_contains_expected_components():
     assert payload["cmps"]["battery"]["value_template"] == "{{ value_json.battery }}"
     assert payload["cmps"]["rsl"]["name"] == "Signal"
     assert payload["cmps"]["rsl"]["value_template"] == "{{ value_json.rsl }}"
+
+
+def test_build_discovery_payload_uses_sanitized_state_topics():
+    """
+    Discovery payload state topics use sanitized receiver and sensor fragments.
+    """
+    measurement = {
+        "id": "15/006+#",
+        "type": "FT10",
+        "reading": 22.9,
+        "battery": 2.6,
+        "rsl": -69,
+    }
+
+    payload = json.loads(
+        homeassistant.build_discovery_payload("RTR/970+#", measurement)
+    )
+
+    assert payload["state_topic"] == "measurements/RTR_970/15_006"
+    assert (
+        payload["cmps"]["reading"]["json_attributes_topic"]
+        == "measurements/RTR_970/15_006"
+    )
 
 
 def test_build_discovery_payload_inferrs_temperature_fields():

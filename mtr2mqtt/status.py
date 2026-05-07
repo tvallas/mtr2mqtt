@@ -9,6 +9,8 @@ from datetime import datetime
 from datetime import timezone
 import json
 
+from mtr2mqtt.topics import topic_fragment
+
 
 STATUS_TOPIC_PREFIX = "status"
 STATUS_ONLINE = "online"
@@ -42,14 +44,14 @@ def receiver_status_topic(receiver, prefix=STATUS_TOPIC_PREFIX):
     """
     Build the retained receiver status topic.
     """
-    return f"{prefix}/{receiver}"
+    return f"{prefix}/{topic_fragment(receiver)}"
 
 
 def sensor_status_topic(receiver, sensor, prefix=STATUS_TOPIC_PREFIX):
     """
     Build the retained sensor status topic.
     """
-    return f"{prefix}/{receiver}/{sensor}"
+    return f"{prefix}/{topic_fragment(receiver)}/{topic_fragment(sensor)}"
 
 
 @dataclass

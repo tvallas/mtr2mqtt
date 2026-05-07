@@ -438,6 +438,33 @@ def test_publish_measurement_without_discovery_keeps_normal_publish_behavior():
     ]
 
 
+def test_publish_measurement_sanitizes_topic_fragments():
+    """
+    Crafted receiver or sensor ids cannot publish outside the measurement namespace.
+    """
+
+    class FakeClient:
+        def __init__(self):
+            self.calls = []
+
+        def publish(self, topic, **kwargs):
+            self.calls.append((topic, kwargs))
+            return (0, 1)
+
+    client = FakeClient()
+
+    result, mid = runtime.publish_measurement(
+        client,
+        "RTR/970+#",
+        '{"id":"15/006+#","type":"FT10","reading":22.9,"battery":2.6,"rsl":-69}',
+        ha_discovery_publisher=None,
+    )
+
+    assert result == 0
+    assert mid == 1
+    assert client.calls[0][0] == "measurements/RTR_970/15_006"
+
+
 def test_publish_status_uses_retained_status_topic_payload():
     """
     Status publishing is retained and separate from measurement publishing.
