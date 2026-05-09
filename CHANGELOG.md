@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.11.2 (2026-05-09)
+
+### Bug Fixes
+
+- **deps**: Update gitpython security patch
+  ([`7b7b80e`](https://github.com/tvallas/mtr2mqtt/commit/7b7b80e391ab3aae84afa0bbf8b5ecafcc8f684f))
+
+
 ## v0.11.1 (2026-05-07)
 
 ### Bug Fixes
