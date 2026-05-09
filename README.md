@@ -1,5 +1,13 @@
 # mtr2mqtt
 
+[![CI](https://github.com/tvallas/mtr2mqtt/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/tvallas/mtr2mqtt/actions/workflows/ci.yml)
+[![Trivy](https://github.com/tvallas/mtr2mqtt/actions/workflows/trivy.yml/badge.svg?branch=master)](https://github.com/tvallas/mtr2mqtt/actions/workflows/trivy.yml)
+[![Release](https://github.com/tvallas/mtr2mqtt/actions/workflows/semantic_release.yml/badge.svg?branch=master)](https://github.com/tvallas/mtr2mqtt/actions/workflows/semantic_release.yml)
+[![PyPI Version](https://img.shields.io/pypi/v/mtr2mqtt?logo=pypi)](https://pypi.org/project/mtr2mqtt/)
+[![Python Versions](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue?logo=python)](https://github.com/tvallas/mtr2mqtt/actions/workflows/ci.yml)
+[![Docker Pulls](https://img.shields.io/docker/pulls/tvallas/mtr2mqtt?logo=docker)](https://hub.docker.com/r/tvallas/mtr2mqtt)
+[![Docker Image Version](https://img.shields.io/docker/v/tvallas/mtr2mqtt/latest?label=docker%20image&logo=docker)](https://hub.docker.com/r/tvallas/mtr2mqtt)
+
 A CLI tool for reading Nokeval MTR wireless receivers and forwarding readings as JSON objects to MQTT topics. This allows integration with home automation systems, data logging platforms, and visualization tools.
 
 ## Overview
