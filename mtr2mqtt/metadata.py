@@ -39,30 +39,73 @@ def loadfile(file):
             f"Metadata file {file} contains values that cannot be serialized to JSON"
         ) from error
 
-def get_data(transmitter_id, all_transmitters):
-    """
-    Gets metada for transmitter
-    """
+
+def _load_transmitter_list(all_transmitters):
     try:
-        all_transmitters = json.loads(all_transmitters)
+        transmitter_list = json.loads(all_transmitters)
     except (TypeError, json.JSONDecodeError):
         logging.warning("Metadata content is not valid JSON, skipping lookup")
         return None
 
+    if not isinstance(transmitter_list, list):
+        logging.warning(
+            "Metadata must be a list of transmitters, got %s",
+            type(transmitter_list).__name__,
+        )
+        return None
+
+    return transmitter_list
+
+
+def _normalized_transmitter_id(transmitter_id):
     try:
-        transmitter_id = int(transmitter_id)
+        return int(transmitter_id)
     except (TypeError, ValueError):
         logging.warning("Transmitter id %r is not a valid integer", transmitter_id)
         return None
 
+
+def has_transmitter_id(transmitter_id, all_transmitters):
+    """
+    Return True when a transmitter id is configured in the metadata list.
+    """
+    all_transmitters = _load_transmitter_list(all_transmitters)
+    if all_transmitters is None:
+        return False
+
+    transmitter_id = _normalized_transmitter_id(transmitter_id)
+    if transmitter_id is None:
+        return False
+
     logging.debug("All transmitters metadata: %s", all_transmitters)
     logging.debug("Transmitter id: %s", transmitter_id)
-    if not isinstance(all_transmitters, list):
-        logging.warning(
-            "Metadata must be a list of transmitters, got %s",
-            type(all_transmitters).__name__,
-        )
+    for transmitter in all_transmitters:
+        if not isinstance(transmitter, dict):
+            logging.debug(
+                "Skipping metadata entry with unexpected type: %s",
+                type(transmitter).__name__,
+            )
+            continue
+        logging.debug("Iterated transmitter: %s", transmitter)
+        if transmitter.get('id') == transmitter_id:
+            return True
+    return False
+
+
+def get_data(transmitter_id, all_transmitters):
+    """
+    Gets metada for transmitter
+    """
+    all_transmitters = _load_transmitter_list(all_transmitters)
+    if all_transmitters is None:
         return None
+
+    transmitter_id = _normalized_transmitter_id(transmitter_id)
+    if transmitter_id is None:
+        return None
+
+    logging.debug("All transmitters metadata: %s", all_transmitters)
+    logging.debug("Transmitter id: %s", transmitter_id)
     info = None
     for transmitter in all_transmitters:
         if not isinstance(transmitter, dict):

@@ -52,6 +52,20 @@ def test_metadata_get_data_returns_none_for_missing_transmitter():
     assert metadata.get_data(9999, METADATA_TEST_FILE_OUTPUT) is None
 
 
+def test_metadata_has_transmitter_id_returns_true_for_configured_transmitter():
+    """
+    Metadata membership checks only require the id to be configured.
+    """
+    assert metadata.has_transmitter_id(1234, json.dumps([{"id": 1234}])) is True
+
+
+def test_metadata_has_transmitter_id_returns_false_for_missing_transmitter():
+    """
+    Metadata membership checks return false when the id is not configured.
+    """
+    assert metadata.has_transmitter_id(9999, METADATA_TEST_FILE_OUTPUT) is False
+
+
 def test_metadata_get_data_with_empty_metadata_list():
     """
     metadata.get_data returns None when metadata input is an empty list.
