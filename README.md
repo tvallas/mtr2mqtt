@@ -189,6 +189,19 @@ To use the metadata file with `mtr2mqtt`, pass the file path as an argument:
 mtr2mqtt -f metadata.yml
 ```
 
+To process only transmitters configured in `metadata.yml`, enable metadata-only
+mode:
+
+```sh
+mtr2mqtt -f metadata.yml --metadata-transmitters-only
+```
+
+The same mode can be enabled with `MTR2MQTT_METADATA_TRANSMITTERS_ONLY=true`.
+When enabled, readings from transmitter IDs that are not present in the metadata
+file are skipped before MQTT publishing, Home Assistant discovery, status
+tracking, receiver summaries, and table output. Skipped readings are still
+available in debug logs when `--debug` or `MTR2MQTT_DEBUG=true` is enabled.
+
 ### MQTT Topics and message format
 
 The messages are published to the MQTT broker in a structured JSON format. The structure of the topics and message format is as follows:

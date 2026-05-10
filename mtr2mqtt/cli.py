@@ -160,6 +160,14 @@ def create_parser():
         type=str,
     )
     parser.add_argument(
+        "--metadata-transmitters-only",
+        help="Only process transmitters configured in the metadata file "
+        "(ENV: MTR2MQTT_METADATA_TRANSMITTERS_ONLY)",
+        default=_env_flag("MTR2MQTT_METADATA_TRANSMITTERS_ONLY", False),
+        action=BooleanOptionalAction,
+        required=False,
+    )
+    parser.add_argument(
         "--output",
         help="Console output mode (ENV: MTR2MQTT_OUTPUT)",
         default=os.environ.get("MTR2MQTT_OUTPUT", "json"),

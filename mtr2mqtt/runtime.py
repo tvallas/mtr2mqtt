@@ -16,6 +16,7 @@ import serial
 from serial.tools import list_ports
 
 from mtr2mqtt import homeassistant
+from mtr2mqtt import metadata
 from mtr2mqtt import mtr
 from mtr2mqtt import scl
 from mtr2mqtt import status
@@ -582,6 +583,23 @@ class MtrBridge:  # pylint: disable=too-many-instance-attributes
             parsed_response,
             self.transmitters_metadata,
         )
+        if (
+            measurement_json
+            and getattr(self.args, "metadata_transmitters_only", False)
+        ):
+            measurement = json.loads(measurement_json)
+            if not metadata.has_transmitter_id(
+                measurement["id"],
+                self.transmitters_metadata,
+            ):
+                LOGGER.debug(
+                    "Skipping transmitter not configured in metadata",
+                    extra={
+                        "event": "measurement_skipped_unconfigured",
+                        "measurement": measurement,
+                    },
+                )
+                measurement_json = None
 
         return PollResult(
             BridgeState.READY,

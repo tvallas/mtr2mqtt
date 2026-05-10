@@ -934,6 +934,48 @@ def test_poll_once_returns_measurement_payload_when_data_is_available(monkeypatc
     assert bridge.state is runtime.BridgeState.READY
 
 
+def test_poll_once_skips_measurements_missing_from_metadata_when_enabled(caplog):
+    """
+    Metadata-only mode drops unmatched transmitters before any view or publish path.
+    """
+
+    class FakeSerial:
+        name = "/dev/cu.usbserial-test"
+
+        def write(self, _command):
+            return None
+
+        def read_until(self, _end):
+            return b"\x800 90 58 15006 145 11\x03"
+
+        def read(self, _size):
+            return runtime.scl.calc_bcc(b"\x800 90 58 15006 145 11\x03")
+
+    args = SimpleNamespace(
+        scl_address=126,
+        metadata_transmitters_only=True,
+    )
+    bridge = runtime.MtrBridge(
+        args,
+        transmitters_metadata=json.dumps([{"id": 99999, "location": "Elsewhere"}]),
+    )
+    bridge.receiver = runtime.ReceiverConnection(
+        serial_handle=FakeSerial(),
+        device_type="RTR970",
+        receiver_serial_number="RTR970123",
+        serial_config={"baudrate": 9600},
+    )
+
+    with caplog.at_level("DEBUG"):
+        result = bridge.poll_once()
+
+    assert result.state is runtime.BridgeState.READY
+    assert result.measurement_json is None
+    assert bridge.state is runtime.BridgeState.READY
+    assert caplog.records[-1].event == "measurement_skipped_unconfigured"
+    assert caplog.records[-1].measurement["id"] == "15006"
+
+
 def test_bridge_start_raises_receiver_error_when_no_receiver_is_found(monkeypatch):
     """
     Bridge startup reports missing receivers as a runtime exception.
