@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.12.0 (2026-05-10)
+
+### Documentation
+
+- **readme**: Add project status badges
+  ([`f9affba`](https://github.com/tvallas/mtr2mqtt/commit/f9affba126db0f32f33389e32e874b1eb262d12c))
+
+### Features
+
+- **runtime**: Filter unconfigured metadata transmitters
+  ([`4d6a6cb`](https://github.com/tvallas/mtr2mqtt/commit/4d6a6cb7e66fb3ff3e81ad127a5f0a2cc60cdbf4))
+
+
 ## v0.11.2 (2026-05-09)
 
 ### Bug Fixes
