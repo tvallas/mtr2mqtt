@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.12.1 (2026-05-14)
+
+### Bug Fixes
+
+- **deps**: Upgrade urllib3 to 2.7.0
+  ([`460c5c5`](https://github.com/tvallas/mtr2mqtt/commit/460c5c556151b2433ba87cacf49ae8ce436acf3b))
+
+
 ## v0.12.0 (2026-05-10)
 
 ### Documentation
