@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.12.2 (2026-05-19)
+
+### Bug Fixes
+
+- **deps**: Bump black in the python-minor-patch group
+  ([`d266040`](https://github.com/tvallas/mtr2mqtt/commit/d2660403b319189c4c7a68605bd9815bb32a2ce8))
+
+
 ## v0.12.1 (2026-05-14)
 
 ### Bug Fixes
