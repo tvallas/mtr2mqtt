@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.12.3 (2026-05-23)
+
+### Bug Fixes
+
+- **deps**: Update idna for CVE-2026-45409
+  ([`bf54bda`](https://github.com/tvallas/mtr2mqtt/commit/bf54bda616294fa101212ac229335111e048961a))
+
+
 ## v0.12.2 (2026-05-19)
 
 ### Bug Fixes
