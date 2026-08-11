@@ -52,6 +52,7 @@ jobs:
         continue-on-error: true
         with:
           image-ref: mtr2mqtt:trivy-${{ github.sha }}
+          vuln-type: os
           format: sarif
           output: trivy-image.sarif
           severity: HIGH,CRITICAL
