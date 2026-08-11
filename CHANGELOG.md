@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.12.5 (2026-08-11)
+
+### Bug Fixes
+
+- **ci**: Fix Trivy image scan
+  ([`0d9d4d4`](https://github.com/tvallas/mtr2mqtt/commit/0d9d4d4cab486dfd9ff54c4203c41aef1e7d1b13))
+
+
 ## v0.12.4 (2026-08-11)
 
 ### Bug Fixes
