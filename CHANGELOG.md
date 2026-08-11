@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.12.6 (2026-08-11)
+
+### Bug Fixes
+
+- **deps**: Update GitPython
+  ([`4b0a759`](https://github.com/tvallas/mtr2mqtt/commit/4b0a7593b086ad2a427c27357eb19a5bf7a0f8fd))
+
+### Chores
+
+- **deps**: Bump python-semantic-release/python-semantic-release
+  ([`3686b11`](https://github.com/tvallas/mtr2mqtt/commit/3686b11e1dd6b5d26fc390f023f2cf59794e0db7))
+
+
 ## v0.12.5 (2026-08-11)
 
 ### Bug Fixes
