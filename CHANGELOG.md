@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.12.4 (2026-08-11)
+
+### Bug Fixes
+
+- **deps**: Bump the python-minor-patch group across 1 directory with 4 updates
+  ([`328673e`](https://github.com/tvallas/mtr2mqtt/commit/328673e437cf89f9b81dbfa686224df7cf78a8ac))
+
+### Chores
+
+- **deps**: Bump actions/checkout from 6 to 7
+  ([`bc8a1db`](https://github.com/tvallas/mtr2mqtt/commit/bc8a1db43ae170eaf3a84a76252dff362439520a))
+
+
 ## v0.12.3 (2026-05-23)
 
 ### Bug Fixes
