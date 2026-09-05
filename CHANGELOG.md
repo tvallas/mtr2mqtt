@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.13.0 (2026-09-05)
+
+### Features
+
+- **runtime**: Filter non-measurement packets by default
+  ([`8a8f6dd`](https://github.com/tvallas/mtr2mqtt/commit/8a8f6dd6cd55629da1226cb2746875d82d21e5ea))
+
+
 ## v0.12.6 (2026-08-11)
 
 ### Bug Fixes
