@@ -45,6 +45,19 @@ class TransmitterType(Enum):
     UTILITY = 15
 
 
+MEASUREMENT_TRANSMITTER_TYPES = frozenset({
+    TransmitterType.FT10.name,
+    TransmitterType.CSR260.name,
+})
+
+
+def is_measurement_packet(packet):
+    """
+    Return whether a decoded packet is a supported normal measurement.
+    """
+    return packet.get("type") in MEASUREMENT_TRANSMITTER_TYPES
+
+
 def check_payload(payload):
     """
     Verifies that payload length matches lenght field

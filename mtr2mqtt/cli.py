@@ -168,6 +168,14 @@ def create_parser():
         required=False,
     )
     parser.add_argument(
+        "--publish-non-measurement-packets",
+        help="Publish utility and unsupported packet types "
+        "(ENV: MTR2MQTT_PUBLISH_NON_MEASUREMENT_PACKETS)",
+        default=_env_flag("MTR2MQTT_PUBLISH_NON_MEASUREMENT_PACKETS", False),
+        action=BooleanOptionalAction,
+        required=False,
+    )
+    parser.add_argument(
         "--output",
         help="Console output mode (ENV: MTR2MQTT_OUTPUT)",
         default=os.environ.get("MTR2MQTT_OUTPUT", "json"),

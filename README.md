@@ -72,6 +72,23 @@ Configure the retained receiver summary debounce interval:
 mtr2mqtt --summary-debounce-seconds 5
 ```
 
+By default, only supported normal measurement packets (`FT10` and `CSR260`) are
+published. Utility packets and other recognized packet types that do not
+represent supported measurements are filtered before console output, status
+tracking, Home Assistant discovery, summaries, and MQTT publication. Normal
+measurement topics, payloads, and metadata are unchanged.
+
+To restore the previous publish-all behavior, use:
+
+```sh
+mtr2mqtt --publish-non-measurement-packets
+```
+
+The equivalent environment setting is
+`MTR2MQTT_PUBLISH_NON_MEASUREMENT_PACKETS=true`. The option defaults to `false`;
+use `--no-publish-non-measurement-packets` or an explicit false environment
+value such as `false`, `0`, `no`, or `off` to retain filtering.
+
 Use the live table view:
 
 ```sh
@@ -131,6 +148,7 @@ services:
     environment:
       MTR2MQTT_MQTT_HOST: mosquitto
       MTR2MQTT_METADATA_FILE: /tmp/metadata.yml
+      MTR2MQTT_PUBLISH_NON_MEASUREMENT_PACKETS: "false"
       MTR2MQTT_QUIET: "true"
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
