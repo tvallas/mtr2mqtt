@@ -583,14 +583,30 @@ class MtrBridge:  # pylint: disable=too-many-instance-attributes
             parsed_response,
             self.transmitters_metadata,
         )
-        if (
-            measurement_json
-            and getattr(self.args, "metadata_transmitters_only", False)
-        ):
+        if measurement_json:
             measurement = json.loads(measurement_json)
-            if not metadata.has_transmitter_id(
-                measurement["id"],
-                self.transmitters_metadata,
+            if (
+                not getattr(
+                    self.args,
+                    "publish_non_measurement_packets",
+                    False,
+                )
+                and not mtr.is_measurement_packet(measurement)
+            ):
+                LOGGER.debug(
+                    "Skipping non-measurement packet",
+                    extra={
+                        "event": "packet_skipped_non_measurement",
+                        "packet": measurement,
+                    },
+                )
+                measurement_json = None
+            elif (
+                getattr(self.args, "metadata_transmitters_only", False)
+                and not metadata.has_transmitter_id(
+                    measurement["id"],
+                    self.transmitters_metadata,
+                )
             ):
                 LOGGER.debug(
                     "Skipping transmitter not configured in metadata",

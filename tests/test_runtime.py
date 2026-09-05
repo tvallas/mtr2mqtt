@@ -12,6 +12,35 @@ from context import mtr2mqtt
 from mtr2mqtt import runtime
 
 
+def _bridge_for_packet(packet, args=None, transmitters_metadata=None):
+    """
+    Build a bridge whose receiver returns one representative MTR packet.
+    """
+    framed_response = b"\x80" + packet.encode() + b"\x03"
+
+    class FakeSerial:
+        name = "/dev/cu.usbserial-test"
+
+        def write(self, _command):
+            return None
+
+        def read_until(self, _end):
+            return framed_response
+
+        def read(self, _size):
+            return runtime.scl.calc_bcc(framed_response)
+
+    bridge = runtime.MtrBridge(args or SimpleNamespace(scl_address=126))
+    bridge.transmitters_metadata = transmitters_metadata
+    bridge.receiver = runtime.ReceiverConnection(
+        serial_handle=FakeSerial(),
+        device_type="RTR970",
+        receiver_serial_number="RTR970123",
+        serial_config={"baudrate": 9600},
+    )
+    return bridge
+
+
 def test_open_mqtt_connection_uses_callback_api_v2(monkeypatch):
     """
     MQTT client initialization opts in to the non-deprecated callback API.
@@ -932,6 +961,100 @@ def test_poll_once_returns_measurement_payload_when_data_is_available(monkeypatc
     assert result.measurement_json is not None
     assert '"id": "15006"' in result.measurement_json
     assert bridge.state is runtime.BridgeState.READY
+
+
+def test_poll_once_publishes_normal_measurement_with_metadata_by_default():
+    """
+    Default filtering preserves supported readings and their merged metadata.
+    """
+    bridge = _bridge_for_packet(
+        "0 90 58 15006 145 11",
+        transmitters_metadata=json.dumps([
+            {"id": 15006, "location": "Living room", "unit": "C"},
+        ]),
+    )
+
+    result = bridge.poll_once()
+
+    measurement = json.loads(result.measurement_json)
+    assert result.state is runtime.BridgeState.READY
+    assert measurement["type"] == "FT10"
+    assert measurement["reading"] == 22.9
+    assert measurement["location"] == "Living room"
+    assert measurement["unit"] == "C"
+
+
+def test_poll_once_filters_utility_packet_by_default(caplog):
+    """
+    Utility metadata packets stop before downstream publication by default.
+    """
+    bridge = _bridge_for_packet("15 124 45 27054 0 184 23")
+
+    with caplog.at_level("DEBUG"):
+        result = bridge.poll_once()
+
+    assert result.state is runtime.BridgeState.READY
+    assert result.measurement_json is None
+    skipped_record = next(
+        record
+        for record in caplog.records
+        if getattr(record, "event", None) == "packet_skipped_non_measurement"
+    )
+    assert skipped_record.packet["type"] == "UTILITY"
+
+
+def test_poll_once_filters_unsupported_packet_type_by_default():
+    """
+    Recognized types without a measurement handler are filtered by default.
+    """
+    bridge = _bridge_for_packet("2 90 58 12345 145 11")
+
+    result = bridge.poll_once()
+
+    assert result.state is runtime.BridgeState.READY
+    assert result.measurement_json is None
+
+
+def test_poll_once_can_publish_utility_packet():
+    """
+    Publish-all mode preserves the previous utility packet payload.
+    """
+    bridge = _bridge_for_packet(
+        "15 124 45 27054 0 184 23",
+        args=SimpleNamespace(
+            scl_address=126,
+            publish_non_measurement_packets=True,
+        ),
+    )
+
+    result = bridge.poll_once()
+
+    packet = json.loads(result.measurement_json)
+    assert result.state is runtime.BridgeState.READY
+    assert packet["type"] == "UTILITY"
+    assert packet["calibrated"] == "16.08.2016"
+    assert "reading" not in packet
+
+
+def test_poll_once_can_publish_unsupported_packet_type():
+    """
+    Publish-all mode preserves packets without a normal measurement handler.
+    """
+    bridge = _bridge_for_packet(
+        "2 90 58 12345 145 11",
+        args=SimpleNamespace(
+            scl_address=126,
+            publish_non_measurement_packets=True,
+        ),
+    )
+
+    result = bridge.poll_once()
+
+    packet = json.loads(result.measurement_json)
+    assert result.state is runtime.BridgeState.READY
+    assert packet["type"] == "MTR262"
+    assert packet["message"] == "Unsupport transmitter type"
+    assert "reading" not in packet
 
 
 def test_poll_once_skips_measurements_missing_from_metadata_when_enabled(caplog):

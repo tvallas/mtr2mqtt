@@ -49,6 +49,17 @@ MTR_MALFORMED_TRANSMITTER_ID_INPUT = "0 90 58 15/006 145 11"
 MTR_UNKNOWN_TYPE_INPUT = "99 90 58 15006 145 11"
 
 
+def test_measurement_packet_classification_matches_supported_handlers():
+    """
+    Only packet types with normal measurement handlers are classified as such.
+    """
+    assert mtr.is_measurement_packet({"type": "FT10"}) is True
+    assert mtr.is_measurement_packet({"type": "CSR260"}) is True
+    assert mtr.is_measurement_packet({"type": "UTILITY"}) is False
+    assert mtr.is_measurement_packet({"type": "MTR262"}) is False
+    assert mtr.is_measurement_packet({"type": "UNKNOWN"}) is False
+
+
 @freeze_time("2020-09-23 19:34:13.497019+00:00")
 def test_mtr_reading_response_to_json_with_sample_input():
     """

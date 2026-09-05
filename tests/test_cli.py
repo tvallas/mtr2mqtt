@@ -42,6 +42,7 @@ def test_parser_defaults_without_arguments(monkeypatch):
     monkeypatch.delenv("MTR2MQTT_MQTT_PORT", raising=False)
     monkeypatch.delenv("MTR2MQTT_METADATA_FILE", raising=False)
     monkeypatch.delenv("MTR2MQTT_METADATA_TRANSMITTERS_ONLY", raising=False)
+    monkeypatch.delenv("MTR2MQTT_PUBLISH_NON_MEASUREMENT_PACKETS", raising=False)
     monkeypatch.delenv("MTR2MQTT_OUTPUT", raising=False)
     monkeypatch.delenv("MTR2MQTT_HA_DISCOVERY", raising=False)
     monkeypatch.delenv("MTR2MQTT_HA_DISCOVERY_PREFIX", raising=False)
@@ -63,6 +64,7 @@ def test_parser_defaults_without_arguments(monkeypatch):
     assert args.mqtt_port == 1883
     assert args.metadata_file is None
     assert args.metadata_transmitters_only is False
+    assert args.publish_non_measurement_packets is False
     assert args.output == "json"
     assert args.ha_discovery is False
     assert args.ha_discovery_prefix == "homeassistant"
@@ -87,6 +89,7 @@ def test_parser_reads_environment_defaults(monkeypatch):
     monkeypatch.setenv("MTR2MQTT_MQTT_PORT", "1884")
     monkeypatch.setenv("MTR2MQTT_METADATA_FILE", "tests/metadata.yml")
     monkeypatch.setenv("MTR2MQTT_METADATA_TRANSMITTERS_ONLY", "true")
+    monkeypatch.setenv("MTR2MQTT_PUBLISH_NON_MEASUREMENT_PACKETS", "true")
     monkeypatch.setenv("MTR2MQTT_OUTPUT", "table")
     monkeypatch.setenv("MTR2MQTT_HA_DISCOVERY", "true")
     monkeypatch.setenv("MTR2MQTT_HA_DISCOVERY_PREFIX", "ha")
@@ -108,6 +111,7 @@ def test_parser_reads_environment_defaults(monkeypatch):
     assert args.mqtt_port == 1884
     assert args.metadata_file == "tests/metadata.yml"
     assert args.metadata_transmitters_only is True
+    assert args.publish_non_measurement_packets is True
     assert args.output == "table"
     assert args.ha_discovery is True
     assert args.ha_discovery_prefix == "ha"
@@ -171,6 +175,34 @@ def test_parser_home_assistant_flags():
     assert args.ha_discovery_prefix == "ha"
     assert args.ha_discovery_retain is False
     assert args.ha_discovery_node_id == "bridge-1"
+
+
+@pytest.mark.parametrize("value", ["false", "0", "no", "off"])
+def test_parser_reads_explicit_false_non_measurement_environment_values(
+    monkeypatch,
+    value,
+):
+    """
+    Explicit false environment values keep non-measurement filtering enabled.
+    """
+    monkeypatch.setenv("MTR2MQTT_PUBLISH_NON_MEASUREMENT_PACKETS", value)
+
+    args = cli.create_parser().parse_args([])
+
+    assert args.publish_non_measurement_packets is False
+
+
+def test_parser_cli_can_override_environment_to_filter_non_measurements(monkeypatch):
+    """
+    The negative CLI form overrides a publish-all environment default.
+    """
+    monkeypatch.setenv("MTR2MQTT_PUBLISH_NON_MEASUREMENT_PACKETS", "true")
+
+    args = cli.create_parser().parse_args(
+        ["--no-publish-non-measurement-packets"]
+    )
+
+    assert args.publish_non_measurement_packets is False
 
 
 def test_parser_rejects_debug_and_quiet_together():
