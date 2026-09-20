@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.13.1 (2026-09-20)
+
+### Bug Fixes
+
+- **deps**: Bump the python-minor-patch group across 1 directory with 2 updates
+  ([`d5c3fdd`](https://github.com/tvallas/mtr2mqtt/commit/d5c3fdd227497878ffb0b24f59a5b1042352e8a4))
+
+### Chores
+
+- **deps**: Bump actions/setup-python from 6 to 7
+  ([`75c278e`](https://github.com/tvallas/mtr2mqtt/commit/75c278e72856e2678fdc6b918c8cb774e281be80))
+
+- **deps**: Bump python-semantic-release/python-semantic-release
+  ([`fdcc97b`](https://github.com/tvallas/mtr2mqtt/commit/fdcc97bbdee87a8cd082e520680ace528b0f7e11))
+
+
 ## v0.13.0 (2026-09-05)
 
 ### Features
