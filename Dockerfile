@@ -1,4 +1,4 @@
-FROM python:3.14-alpine AS builder
+FROM python:3.15-alpine AS builder
 
 WORKDIR /src
 
@@ -11,7 +11,7 @@ RUN python -m pip install --no-cache-dir --upgrade \
     "wheel>=0.46.2" && \
     python -m pip wheel --no-cache-dir --wheel-dir /tmp/wheels /src
 
-FROM python:3.14-alpine
+FROM python:3.15-alpine
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
